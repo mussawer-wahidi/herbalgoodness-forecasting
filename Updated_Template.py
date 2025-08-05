@@ -17,13 +17,13 @@ import streamlit as st
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload
+import gspread
+from google.oauth2.service_account import Credentials
 
 warnings.filterwarnings('ignore')
 
 
 try:
-    import gspread
-    from google.oauth2.service_account import Credentials
     GOOGLE_SHEETS_AVAILABLE = True
 except ImportError:
     GOOGLE_SHEETS_AVAILABLE = False
@@ -3292,9 +3292,9 @@ def upload_to_google_drive_from_buffer(buffer):
     FIXED_FILENAME = "Forecasting Excel Workbook Format.xlsx"
     
     # Handle service account credentials
-    if "gcp_service_account" in st.secrets:
+    if "gcp_service_account_drive" in st.secrets:
         # Running in Streamlit Cloud — use secrets
-        creds_dict = st.secrets["gcp_service_account"]
+        creds_dict = st.secrets["gcp_service_account_drive"]
         with open("temp_service_account.json", "w") as f:
             json.dump(dict(creds_dict), f)
         SERVICE_ACCOUNT_FILE = "temp_service_account.json"
@@ -3389,8 +3389,8 @@ def main():
                 print("Looking for credentials file...")
 
                 # If running on Streamlit Cloud with secrets
-                if "gcp_service_account" in st.secrets:
-                    creds_dict = st.secrets["gcp_service_account"]
+                if "gcp_service_account_sheets" in st.secrets:
+                    creds_dict = st.secrets["gcp_service_account_sheets"]
                     with open("temp_credentials.json", "w") as f:
                         json.dump(dict(creds_dict), f)
                     credential_paths = ["temp_credentials.json"]

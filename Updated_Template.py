@@ -4923,7 +4923,11 @@ header_col1, header_col2 = st.columns([1, 5])
 with header_col1:
     # Logo section - replace the path with your actual logo file
     try:
-        st.image(r"C:\Users\samiw\PycharmProjects\Python_NewProject_First\assets\herbal-logo.avif", width=200)
+
+        BASE_DIR = os.path.dirname(__file__)
+        logo_path = os.path.join(BASE_DIR, "logo", "herbal-logo.avif")
+        st.image(logo_path, width=200)
+
     except:
         st.markdown("""
             <div style="width: 80px; height: 80px; background: linear-gradient(135deg, #40e0d0, #87ceeb); 

@@ -5027,9 +5027,16 @@ with button_container:
                 # )
                 # thread.start()
 
-                results.update(
-                    zip(("excel_buffer", "filename", "drive_file_id"), main())
-                )
+                try:
+                    output = main()
+                    if isinstance(output, (list, tuple)) and len(output) == 3:
+                        results.update(zip(("excel_buffer", "filename", "drive_file_id"), output))
+                    else:
+                        st.error(f"❌ main() returned invalid output: {output}")
+                except Exception as e:
+                    import traceback
+                    err_msg = traceback.format_exc()
+                    st.error(f"❌ MAIN() CRASHED:\n```\n{err_msg}\n```")
 
 
                 # Progress simulation while main() runs

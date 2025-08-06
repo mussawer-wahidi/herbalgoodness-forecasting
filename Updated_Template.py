@@ -3373,6 +3373,7 @@ def upload_to_google_drive_from_buffer(buffer):
          
 def main():
     try:
+        st.write("[DEBUG] main() started")
         print("ENHANCED INVENTORY FORECASTING MODEL - COMPREHENSIVE VERSION")
         print("=" * 60)
 
@@ -4472,6 +4473,11 @@ def main():
 
         return excel_buffer, filename, drive_file_id
 
+    except Exception as e:
+    import traceback
+    err_msg = traceback.format_exc()
+    st.error(f"❌ MAIN() FAILED:\n```\n{err_msg}\n```")
+    return None, None, None
 
     except FileNotFoundError as e:
         print(f"File not found: {e}")
@@ -5010,16 +5016,21 @@ with button_container:
                     "✨ Generating Intelligence Reports...",
                 ]
 
-                # Holder for main() results
-                results = {}
+                # # Holder for main() results
+                # results = {}
 
-                # Start main() in a separate thread
-                thread = threading.Thread(
-                    target=lambda: results.update(
-                        zip(("excel_buffer", "filename", "drive_file_id"), main())
-                    )
+                # # Start main() in a separate thread
+                # thread = threading.Thread(
+                #     target=lambda: results.update(
+                #         zip(("excel_buffer", "filename", "drive_file_id"), main())
+                #     )
+                # )
+                # thread.start()
+
+                results.update(
+                    zip(("excel_buffer", "filename", "drive_file_id"), main())
                 )
-                thread.start()
+
 
                 # Progress simulation while main() runs
                 for i in range(100):

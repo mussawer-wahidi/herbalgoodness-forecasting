@@ -4474,10 +4474,10 @@ def main():
         return excel_buffer, filename, drive_file_id
 
     except Exception as e:
-    import traceback
-    err_msg = traceback.format_exc()
-    st.error(f"❌ MAIN() FAILED:\n```\n{err_msg}\n```")
-    return None, None, None
+        import traceback
+        err_msg = traceback.format_exc()
+        st.error(f"❌ MAIN() FAILED:\n```\n{err_msg}\n```")
+        return None, None, None
 
     except FileNotFoundError as e:
         print(f"File not found: {e}")

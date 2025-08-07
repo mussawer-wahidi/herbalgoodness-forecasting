@@ -3578,13 +3578,42 @@ def main():
 
         print(f"Saving results to {filename}...")
 
-        # Create BytesIO buffer for Excel file (works for both CLI and Streamlit)
-        excel_buffer = BytesIO()
+        # # Create BytesIO buffer for Excel file (works for both CLI and Streamlit)
+        # excel_buffer = BytesIO()
 
-        with pd.ExcelWriter(excel_buffer, engine='xlsxwriter',
-                           engine_kwargs={'options': {'nan_inf_to_errors': True}}) as writer:
-            # Get the xlsxwriter workbook and worksheet objects
-            workbook = writer.book
+        # with pd.ExcelWriter(excel_buffer, engine='xlsxwriter',
+        #                    engine_kwargs={'options': {'nan_inf_to_errors': True}}) as writer:
+        #     # Get the xlsxwriter workbook and worksheet objects
+        #     workbook = writer.book
+
+        try:
+            print(f"[DEBUG] Saving results to: {filename}...")
+        
+            # Create BytesIO buffer for Excel file (works for both CLI and Streamlit)
+            excel_buffer = BytesIO()
+            print("[DEBUG] BytesIO buffer created successfully.")
+        
+            # Try creating ExcelWriter using xlsxwriter
+            with pd.ExcelWriter(
+                excel_buffer,
+                engine='xlsxwriter',
+                engine_kwargs={'options': {'nan_inf_to_errors': True}}
+            ) as writer:
+                print("[DEBUG] ExcelWriter context manager opened successfully.")
+        
+                # Get the workbook object (use cautiously, only if needed)
+                workbook = writer.book
+                print("[DEBUG] xlsxwriter workbook object accessed.")
+        
+                # [Optional] Add a sample write to see if it fails
+                pd.DataFrame({"Check": [1, 2]}).to_excel(writer, sheet_name="CheckSheet", index=False)
+                print("[DEBUG] Test data written to Excel buffer.")
+        
+        except Exception as e:
+            print("[ERROR] Failed while saving Excel to buffer.")
+            import traceback
+            traceback.print_exc()
+
 
             # Define formats
             header_format = workbook.add_format({
@@ -5109,5 +5138,6 @@ st.markdown("""
         </p>
     </div>
 """, unsafe_allow_html=True)
+
 
 st.markdown('</div>', unsafe_allow_html=True)

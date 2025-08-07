@@ -19,8 +19,32 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload
 import gspread
 from google.oauth2.service_account import Credentials
+import sys
+import traceback
 
 warnings.filterwarnings('ignore')
+
+
+# Global error catcher
+def global_exception_handler(exctype, value, tb):
+    print("💥 Unhandled Exception Caught:")
+    print("Type:", exctype)
+    print("Value:", value)
+    traceback.print_tb(tb)
+    print("✅ Application will continue running.")
+
+sys.excepthook = global_exception_handler
+
+# Optional: Log all warnings
+def custom_warning_handler(message, category, filename, lineno, file=None, line=None):
+    print(f"⚠️ Warning: {category.__name__} in {filename}:{lineno} → {message}")
+
+warnings.showwarning = custom_warning_handler
+
+# Optional helper
+def safe_first(lst, default=None):
+    return lst[0] if lst else default
+
 
 # Always reference files relative to the script's directory
 try:
@@ -5131,3 +5155,4 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.markdown('</div>', unsafe_allow_html=True)
+

@@ -22,6 +22,14 @@ from google.oauth2.service_account import Credentials
 
 warnings.filterwarnings('ignore')
 
+# Always reference files relative to the script's directory
+try:
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+except NameError:
+    BASE_DIR = os.getcwd()
+
+print(f"[DEBUG] BASE_DIR set to: {BASE_DIR}")
+
 
 try:
     GOOGLE_SHEETS_AVAILABLE = True
@@ -3290,18 +3298,23 @@ def upload_to_google_drive_from_buffer(buffer):
     SHARED_DRIVE_ID = '0ANRBYKNxrAXaUk9PVA'
     FOLDER_ID = '0ANRBYKNxrAXaUk9PVA'
     FIXED_FILENAME = "Forecasting Excel Workbook Format.xlsx"
-    
+
     # Handle service account credentials
-    if "gcp_service_account_drive" in st.secrets:
-        # Running in Streamlit Cloud — use secrets
+    local_drive_key = os.path.join(BASE_DIR, "GoogleDriveAPIKey.json")
+
+    if os.path.exists(local_drive_key):
+        SERVICE_ACCOUNT_FILE = local_drive_key
+        print(f"✅ Using local Google Drive credentials: {SERVICE_ACCOUNT_FILE}")
+    elif "gcp_service_account_drive" in st.secrets:
         creds_dict = st.secrets["gcp_service_account_drive"]
         with open("temp_service_account.json", "w") as f:
             json.dump(dict(creds_dict), f)
         SERVICE_ACCOUNT_FILE = "temp_service_account.json"
+        print("✅ Using Google Drive credentials from Streamlit secrets")
     else:
-        # Running locally — use file from your repo
-        BASE_DIR = os.path.dirname(__file__)
-        SERVICE_ACCOUNT_FILE = os.path.join(BASE_DIR, "GoogleDriveAPIKey.json")
+        raise FileNotFoundError(
+            "❌ No local Google Drive credentials or Streamlit secrets found."
+        )
 
     credentials = service_account.Credentials.from_service_account_file(
         SERVICE_ACCOUNT_FILE, scopes=SCOPES)
@@ -3367,8 +3380,6 @@ def main():
         INVENTORY_URL = "https://docs.google.com/spreadsheets/d/1_j7eJi52Kq8RHvK6e0RPBRK8wJ0DXUOMj7Z7yZHlZzM/edit?gid=404505721#gid=404505721"
         USE_GOOGLE_SHEETS = True
 
-        # Always reference files relative to the script's directory
-        BASE_DIR = os.path.dirname(__file__)
 
         print("Loading data files...")
 
@@ -3388,35 +3399,44 @@ def main():
                 print(f"Current working directory: {os.getcwd()}")
                 print("Looking for credentials file...")
 
-                # If running on Streamlit Cloud with secrets
-                if "gcp_service_account_sheets" in st.secrets:
-                    creds_dict = st.secrets["gcp_service_account_sheets"]
-                    with open("temp_credentials.json", "w") as f:
-                        json.dump(dict(creds_dict), f)
-                    credential_paths = ["temp_credentials.json"]
+                print(f"BASE_DIR: {BASE_DIR}")
 
-                # Otherwise, running locally → look for file in possible locations
-                else:
-                    # Look for credentials in the current folder or optional 'config' folder
-                    credential_paths = [
-                        os.path.join(BASE_DIR, "credentials.json"),
-                        os.path.join(BASE_DIR, "service-account-key.json"),
-                        os.path.join(BASE_DIR, "config", "credentials.json"),
-                        os.path.join(BASE_DIR, "config", "service-account-key.json"),
-                    ]
+                # Define credential paths FIRST
+                credential_paths = [
+                    os.path.join(BASE_DIR, "credentials.json"),
+                    os.path.join(BASE_DIR, "service-account-key.json"),
+                    os.path.join(BASE_DIR, "config", "credentials.json"),
+                    os.path.join(BASE_DIR, "config", "service-account-key.json"),
+                ]
+
+                print("Checking paths:")
+                for p in credential_paths:
+                    print(" -", p, "| Exists:", os.path.exists(p))
 
                 credentials_file = None
                 for path in credential_paths:
                     if os.path.exists(path):
                         credentials_file = path
-                        print(f"✅ Found credentials file: {path}")
+                        print(f"✅ Found local credentials file: {path}")
                         break
 
+                # If no local file, try Streamlit Cloud secrets
+                if not credentials_file and "gcp_service_account_sheets" in st.secrets:
+                    creds_dict = st.secrets["gcp_service_account_sheets"]
+                    with open("temp_credentials.json", "w") as f:
+                        json.dump(dict(creds_dict), f)
+                    credentials_file = "temp_credentials.json"
+                    print("✅ Loaded credentials from Streamlit Cloud secrets")
+
+                # If still nothing, fall back to CSV
                 if not credentials_file:
-                    print("❌ No credentials file found. Falling back to CSV...")
+                    print("❌ No credentials file found locally or in secrets. Falling back to CSV...")
                     raise FileNotFoundError("No credentials file found")
 
+                # Create Google Sheets connector
                 gs_connector = GoogleSheetsConnector(credentials_file)
+
+
 
                 # Get inventory data from Google Sheets
                 print(f"\n📦 Loading inventory data from Google Sheets...")
@@ -3578,42 +3598,13 @@ def main():
 
         print(f"Saving results to {filename}...")
 
-        # # Create BytesIO buffer for Excel file (works for both CLI and Streamlit)
-        # excel_buffer = BytesIO()
+        # Create BytesIO buffer for Excel file (works for both CLI and Streamlit)
+        excel_buffer = BytesIO()
 
-        # with pd.ExcelWriter(excel_buffer, engine='xlsxwriter',
-        #                    engine_kwargs={'options': {'nan_inf_to_errors': True}}) as writer:
-        #     # Get the xlsxwriter workbook and worksheet objects
-        #     workbook = writer.book
-
-        try:
-            print(f"[DEBUG] Saving results to: {filename}...")
-        
-            # Create BytesIO buffer for Excel file (works for both CLI and Streamlit)
-            excel_buffer = BytesIO()
-            print("[DEBUG] BytesIO buffer created successfully.")
-        
-            # Try creating ExcelWriter using xlsxwriter
-            with pd.ExcelWriter(
-                excel_buffer,
-                engine='xlsxwriter',
-                engine_kwargs={'options': {'nan_inf_to_errors': True}}
-            ) as writer:
-                print("[DEBUG] ExcelWriter context manager opened successfully.")
-        
-                # Get the workbook object (use cautiously, only if needed)
-                workbook = writer.book
-                print("[DEBUG] xlsxwriter workbook object accessed.")
-        
-                # [Optional] Add a sample write to see if it fails
-                pd.DataFrame({"Check": [1, 2]}).to_excel(writer, sheet_name="CheckSheet", index=False)
-                print("[DEBUG] Test data written to Excel buffer.")
-        
-        except Exception as e:
-            print("[ERROR] Failed while saving Excel to buffer.")
-            import traceback
-            traceback.print_exc()
-
+        with pd.ExcelWriter(excel_buffer, engine='xlsxwriter',
+                           engine_kwargs={'options': {'nan_inf_to_errors': True}}) as writer:
+            # Get the xlsxwriter workbook and worksheet objects
+            workbook = writer.book
 
             # Define formats
             header_format = workbook.add_format({
@@ -4953,7 +4944,7 @@ with header_col1:
     # Logo section - replace the path with your actual logo file
     try:
 
-        BASE_DIR = os.path.dirname(__file__)
+        #BASE_DIR = os.path.dirname(__file__)
         logo_path = os.path.join(BASE_DIR, "logo", "herbal-logo.avif")
         st.image(logo_path, width=200)
 
@@ -5138,6 +5129,5 @@ st.markdown("""
         </p>
     </div>
 """, unsafe_allow_html=True)
-
 
 st.markdown('</div>', unsafe_allow_html=True)

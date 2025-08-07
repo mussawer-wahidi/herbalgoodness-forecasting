@@ -3305,8 +3305,8 @@ def upload_to_google_drive_from_buffer(buffer):
     if os.path.exists(local_drive_key):
         SERVICE_ACCOUNT_FILE = local_drive_key
         print(f"✅ Using local Google Drive credentials: {SERVICE_ACCOUNT_FILE}")
-    elif "gcp_service_account_drive" in os.environ:
-        creds_dict = json.loads(os.environ["gcp_service_account_drive"])
+    elif "gcp_service_account_drive" in st.secrets:
+        creds_dict = st.secrets["gcp_service_account_drive"]
         with open("temp_service_account.json", "w") as f:
             json.dump(dict(creds_dict), f)
         SERVICE_ACCOUNT_FILE = "temp_service_account.json"
@@ -3421,15 +3421,12 @@ def main():
                         break
 
                 # If no local file, try Streamlit Cloud secrets
-                if not credentials_file and "gcp_service_account_sheets" in os.environ:
-                    try:
-                        creds_dict = json.loads(os.environ["gcp_service_account_sheets"])
-                        with open("temp_credentials.json", "w") as f:
-                            json.dump(creds_dict, f)
-                        credentials_file = "temp_credentials.json"
-                        print("✅ Loaded credentials from Render environment variable")
-                    except Exception as e:
-                        print("❌ Failed to parse credentials from environment variable:", e)
+                if not credentials_file and "gcp_service_account_sheets" in st.secrets:
+                    creds_dict = st.secrets["gcp_service_account_sheets"]
+                    with open("temp_credentials.json", "w") as f:
+                        json.dump(dict(creds_dict), f)
+                    credentials_file = "temp_credentials.json"
+                    print("✅ Loaded credentials from Streamlit Cloud secrets")
 
                 # If still nothing, fall back to CSV
                 if not credentials_file:

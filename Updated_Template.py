@@ -5139,17 +5139,18 @@ try:
     
     st.markdown('</div>', unsafe_allow_html=True)
     
-    except Exception as e:
-        logging.error("🚨 The app has crashed!")
-        logging.error(f"Error type: {type(e).__name__}")
-        logging.error(f"Error message: {str(e)}")
-        logging.error("Full traceback:")
-        logging.error(traceback.format_exc())
-    
-        try:
-            import streamlit as st
-            st.error(f"App failed to start: {type(e).__name__} - {e}")
-            st.code(traceback.format_exc())
-        except:
-            pass
+except Exception as e:
+    logging.error("🚨 The app has crashed!")
+    logging.error(f"Error type: {type(e).__name__}")
+    logging.error(f"Error message: {str(e)}")
+    logging.error("Full traceback:")
+    logging.error(traceback.format_exc())
+
+    try:
+        import streamlit as st
+        st.error(f"App failed to start: {type(e).__name__} - {e}")
+        st.code(traceback.format_exc())
+    except:
+        pass
+
 

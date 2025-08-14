@@ -11,6 +11,9 @@ import threading
 from sklearn.linear_model import LinearRegression
 from streamlit_extras.stylable_container import stylable_container
 import warnings
+import traceback
+import logging
+import sys
 import io
 from io import BytesIO
 import streamlit as st
@@ -3371,7 +3374,11 @@ def upload_to_google_drive_from_buffer(buffer):
 
          
 def main():
-    try:
+    try:        
+        logging.basicConfig(stream=sys.stdout, level=logging.INFO)
+        
+        st.set_page_config(page_title="My App", layout="wide")
+        
         print("ENHANCED INVENTORY FORECASTING MODEL - COMPREHENSIVE VERSION")
         print("=" * 60)
 
@@ -3464,7 +3471,7 @@ def main():
 
                 # Step 2: Load and extend Shopify weekly
                 print(f"\nLoading Shopify Main weekly sales data...")
-                shopify_weekly_df = gs_connector.get_shopify_main_weekly_sales(WEEKLY_SALES_URL)
+                shopify_weekly_df = gs_connector.get_shopify__weekly_sales(WEEKLY_SALES_URL)
 
                 if not shopify_weekly_df.empty:
                     shopify_weekly_monthly = gs_connector.convert_shopify_weekly_to_monthly(shopify_weekly_df)
@@ -5130,5 +5137,20 @@ st.markdown("""
     </div>
 """, unsafe_allow_html=True)
 
+except Exception as e:
+    logging.error("🚨 The app has crashed!")
+    logging.error(f"Error type: {type(e).__name__}")
+    logging.error(f"Error message: {str(e)}")
+    logging.error("Full traceback:")
+    logging.error(traceback.format_exc())
+
+    try:
+        import streamlit as st
+        st.error(f"App failed to start: {type(e).__name__} - {e}")
+        st.code(traceback.format_exc())
+    except:
+        pass
+
 
 st.markdown('</div>', unsafe_allow_html=True)
+

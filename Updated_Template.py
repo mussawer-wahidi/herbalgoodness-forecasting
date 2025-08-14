@@ -5125,6 +5125,7 @@ try:
     """, unsafe_allow_html=True)
     
     # --- Footer ---
+    # --- Footer ---
     st.markdown("""
         <div style="text-align: center; padding: 3rem 0 2rem 0; margin-top: 3rem; border-top: 1px solid rgba(64, 224, 208, 0.2);">
             <p style="color: rgba(64, 224, 208, 0.8); font-family: 'JetBrains Mono', monospace; font-size: 0.9rem; margin: 0;">
@@ -5134,22 +5135,21 @@ try:
                 Revolutionizing inventory management through intelligent forecasting
             </p>
         </div>
-    """, unsafe_allow_html=True
-    
+    """, unsafe_allow_html=True)  # <-- closing triple quotes AND parenthesis
     
     st.markdown('</div>', unsafe_allow_html=True)
     
-except Exception as e:
-    logging.error("🚨 The app has crashed!")
-    logging.error(f"Error type: {type(e).__name__}")
-    logging.error(f"Error message: {str(e)}")
-    logging.error("Full traceback:")
-    logging.error(traceback.format_exc())
-
-    try:
-        import streamlit as st
-        st.error(f"App failed to start: {type(e).__name__} - {e}")
-        st.code(traceback.format_exc())
-    except:
-        pass 
+    except Exception as e:
+        logging.error("🚨 The app has crashed!")
+        logging.error(f"Error type: {type(e).__name__}")
+        logging.error(f"Error message: {str(e)}")
+        logging.error("Full traceback:")
+        logging.error(traceback.format_exc())
     
+        try:
+            import streamlit as st
+            st.error(f"App failed to start: {type(e).__name__} - {e}")
+            st.code(traceback.format_exc())
+        except:
+            pass
+

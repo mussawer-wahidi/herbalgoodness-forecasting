@@ -19,32 +19,8 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload
 import gspread
 from google.oauth2.service_account import Credentials
-import sys
-import traceback
 
 warnings.filterwarnings('ignore')
-
-
-# Global error catcher
-def global_exception_handler(exctype, value, tb):
-    print("💥 Unhandled Exception Caught:")
-    print("Type:", exctype)
-    print("Value:", value)
-    traceback.print_tb(tb)
-    print("✅ Application will continue running.")
-
-sys.excepthook = global_exception_handler
-
-# Optional: Log all warnings
-def custom_warning_handler(message, category, filename, lineno, file=None, line=None):
-    print(f"⚠️ Warning: {category.__name__} in {filename}:{lineno} → {message}")
-
-warnings.showwarning = custom_warning_handler
-
-# Optional helper
-def safe_first(lst, default=None):
-    return lst[0] if lst else default
-
 
 # Always reference files relative to the script's directory
 try:
@@ -3329,8 +3305,8 @@ def upload_to_google_drive_from_buffer(buffer):
     if os.path.exists(local_drive_key):
         SERVICE_ACCOUNT_FILE = local_drive_key
         print(f"✅ Using local Google Drive credentials: {SERVICE_ACCOUNT_FILE}")
-    elif "gcp_service_account_drive" in st.secrets:
-        creds_dict = st.secrets["gcp_service_account_drive"]
+    elif "gcp_service_account_drive" in os.environ:
+        creds_dict = json.loads(os.environ["gcp_service_account_drive"])
         with open("temp_service_account.json", "w") as f:
             json.dump(dict(creds_dict), f)
         SERVICE_ACCOUNT_FILE = "temp_service_account.json"
@@ -3445,8 +3421,8 @@ def main():
                         break
 
                 # If no local file, try Streamlit Cloud secrets
-                if not credentials_file and "gcp_service_account_sheets" in st.secrets:
-                    creds_dict = st.secrets["gcp_service_account_sheets"]
+                if not credentials_file and "gcp_service_account_sheets" in os.environ:
+                    creds_dict = json.loads(os.environ["gcp_service_account_sheets"])
                     with open("temp_credentials.json", "w") as f:
                         json.dump(dict(creds_dict), f)
                     credentials_file = "temp_credentials.json"
@@ -5155,4 +5131,3 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.markdown('</div>', unsafe_allow_html=True)
-

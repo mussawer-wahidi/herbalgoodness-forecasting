@@ -5122,12 +5122,13 @@ st.markdown("""
 st.markdown("""
     <div style="text-align: center; padding: 3rem 0 2rem 0; margin-top: 3rem; border-top: 1px solid rgba(64, 224, 208, 0.2);">
         <p style="color: rgba(64, 224, 208, 0.8); font-family: 'JetBrains Mono', monospace; font-size: 0.9rem; margin: 0;">
-            HERBAL GOODNESS © 2025 | POWERED BY AMW CONSULTANCY | VERSION 4.0.1
+            HERBAL GOODNESS © 2025 | POWERED BY SCMplify CONSULTANCY | VERSION 4.0.1
         </p>
         <p style="color: rgba(255, 255, 255, 0.4); font-family: 'Space Grotesk', sans-serif; font-size: 0.8rem; margin: 0.5rem 0 0 0;">
             Revolutionizing inventory management through intelligent forecasting
         </p>
     </div>
 """, unsafe_allow_html=True)
+
 
 st.markdown('</div>', unsafe_allow_html=True)

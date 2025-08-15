@@ -161,6 +161,7 @@ class GoogleSheetsConnector:
 
             # Get all values to handle duplicate headers manually
             all_values = worksheet.get_all_values()
+            time.sleep(5)
 
             if not all_values:
                 print("No data found in the worksheet")
@@ -3375,11 +3376,6 @@ def upload_to_google_drive_from_buffer(buffer):
 
          
 def main():
-    lead_times = {}
-    launch_dates = {}
-    product_info = {}
-    product_category = {}
-    product_status = {}
 
     try:               
         print("ENHANCED INVENTORY FORECASTING MODEL - COMPREHENSIVE VERSION")
@@ -3405,34 +3401,71 @@ def main():
         inventory = {}
         
         if USE_GOOGLE_SHEETS and GOOGLE_SHEETS_AVAILABLE:
+if USE_GOOGLE_SHEETS and GOOGLE_SHEETS_AVAILABLE:
             try:
                 print("🔄 Using GCP credentials from environment...")
-        
+                
                 # Ensure env var is present
                 if "gcp_service_account_sheets" not in os.environ:
                     raise FileNotFoundError("❌ No GCP service account credentials found in environment variables.")
         
-                # Load credentials from environment variable
-                creds_dict = json.loads(os.environ["gcp_service_account_sheets"])
-        
-                # Write to temporary file
+                # ✅ Debug: Check what we actually got from env
+                try:
+                    raw_secret = os.environ["gcp_service_account_sheets"]
+                    print(f"🔍 Secret length: {len(raw_secret)} characters")
+                    creds_dict = json.loads(raw_secret)
+                    print(f"✅ Loaded service account for: {creds_dict.get('client_email', 'UNKNOWN EMAIL')}")
+                except Exception as e:
+                    print("❌ Failed to parse service account secret")
+                    import traceback
+                    traceback.print_exc()
+                    raise
+                
+                # Save to temp file
                 credentials_file = "temp_credentials.json"
                 with open(credentials_file, "w") as f:
                     json.dump(creds_dict, f)
+                print("✅ Credentials saved to temp file.")
         
-                print("✅ Credentials loaded from environment and saved to temp file.")
-        
-                # Create Google Sheets connector
+                # Create connector
                 gs_connector = GoogleSheetsConnector(credentials_file)
         
             except Exception as e:
                 print(f"❌ Failed to initialize Google Sheets connector: {e}")
                 raise
+        
+            # Now try getting inventory
+            print(f"\n📦 Loading inventory data from Google Sheets...")
+            inventory = gs_connector.get_inventory_data(INVENTORY_URL)
+            print(f"   Current inventory from Google Sheets: {len(inventory)} SKUs")
 
-                # Get inventory data from Google Sheets
-                print(f"\n📦 Loading inventory data from Google Sheets...")
-                inventory = gs_connector.get_inventory_data(INVENTORY_URL)
-                print(f"   Current inventory from Google Sheets: {len(inventory)} SKUs")
+            # try:
+            #     print("🔄 Using GCP credentials from environment...")
+            #     # Ensure env var is present
+            #     if "gcp_service_account_sheets" not in os.environ:
+            #         raise FileNotFoundError("❌ No GCP service account credentials found in environment variables.")
+        
+            #     # Load credentials from environment variable
+            #     creds_dict = json.loads(os.environ["gcp_service_account_sheets"])
+        
+            #     # Write to temporary file
+            #     credentials_file = "temp_credentials.json"
+            #     with open(credentials_file, "w") as f:
+            #         json.dump(creds_dict, f)
+        
+            #     print("✅ Credentials loaded from environment and saved to temp file.")
+        
+            #     # Create Google Sheets connector
+            #     gs_connector = GoogleSheetsConnector(credentials_file)
+        
+            # except Exception as e:
+            #     print(f"❌ Failed to initialize Google Sheets connector: {e}")
+            #     raise
+
+            #     # Get inventory data from Google Sheets
+            #     print(f"\n📦 Loading inventory data from Google Sheets...")
+            #     inventory = gs_connector.get_inventory_data(INVENTORY_URL)
+            #     print(f"   Current inventory from Google Sheets: {len(inventory)} SKUs")
 
                 # Get product info and lead times
                 product_info, lead_times, launch_dates, product_category, product_status = gs_connector.get_product_data(GOOGLE_SHEET_URL)
@@ -5184,6 +5217,7 @@ st.markdown("""
 """, unsafe_allow_html=True)  # <-- closing triple quotes AND parenthesis
 
 st.markdown('</div>', unsafe_allow_html=True)
+
 
 
 

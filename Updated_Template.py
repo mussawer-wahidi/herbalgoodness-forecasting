@@ -3378,6 +3378,8 @@ def main():
     lead_times = {}
     launch_dates = {}
     product_info = {}
+    product_category = {}
+    product_status = {}
 
     try:               
         print("ENHANCED INVENTORY FORECASTING MODEL - COMPREHENSIVE VERSION")
@@ -5182,6 +5184,7 @@ st.markdown("""
 """, unsafe_allow_html=True)  # <-- closing triple quotes AND parenthesis
 
 st.markdown('</div>', unsafe_allow_html=True)
+
 
 
 

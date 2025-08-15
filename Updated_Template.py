@@ -3401,7 +3401,6 @@ def main():
         inventory = {}
         
         if USE_GOOGLE_SHEETS and GOOGLE_SHEETS_AVAILABLE:
-if USE_GOOGLE_SHEETS and GOOGLE_SHEETS_AVAILABLE:
             try:
                 print("🔄 Using GCP credentials from environment...")
                 
@@ -5217,6 +5216,7 @@ st.markdown("""
 """, unsafe_allow_html=True)  # <-- closing triple quotes AND parenthesis
 
 st.markdown('</div>', unsafe_allow_html=True)
+
 
 
 

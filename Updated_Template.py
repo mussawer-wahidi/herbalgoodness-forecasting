@@ -4996,6 +4996,7 @@ try:
     result_container = st.container()
     
     with button_container:
+    with button_container:
         if st.button("🚀 INITIATE FORECASTING ANALYSIS", key="generate_btn"):
     
             start_time = time.time()  # Track when button was clicked
@@ -5015,44 +5016,46 @@ try:
                         "✨ Generating Intelligence Reports...",
                     ]
     
-                    # Holder for main() results
-                    results = {}
+                    # Progress simulation before running main()
+                    for i in range(40):  # Half the bar before main() runs
+                        stage_index = i // 6
+                        if stage_index < len(neural_stages):
+                            status_text.markdown(
+                                f'<p class="status-text">{neural_stages[stage_index]}</p>',
+                                unsafe_allow_html=True
+                            )
+                        time.sleep(0.05)
+                        progress_bar.progress(i + 1)
     
-                    # Start main() in a separate thread
-                    thread = threading.Thread(
-                        target=lambda: results.update(
-                            zip(("excel_buffer", "filename", "drive_file_id"), main())
-                        )
-                    )
-                    thread.start()
+                    try:
+                        # Run main() directly — errors will show in UI
+                        excel_buffer, filename, drive_file_id = main()
+                    except Exception as e:
+                        import traceback
+                        st.error(f"❌ Forecast Analysis crashed: {type(e).__name__} - {e}")
+                        st.code(traceback.format_exc())
+                        st.stop()
     
-                    # Progress simulation while main() runs
-                    for i in range(100):
+                    # Finish progress bar
+                    for i in range(40, 100):
                         stage_index = i // 14
                         if stage_index < len(neural_stages):
                             status_text.markdown(
                                 f'<p class="status-text">{neural_stages[stage_index]}</p>',
                                 unsafe_allow_html=True
                             )
-                        time.sleep(0.5)
+                        time.sleep(0.02)
                         progress_bar.progress(i + 1)
-    
-                        # If main() finishes early, break out
-                        if not thread.is_alive():
-                            break
-    
-                    # Ensure main() has finished
-                    thread.join()
     
                     # Clear progress UI
                     progress_bar.empty()
                     status_text.empty()
     
                     # Show results
-                    if results.get("excel_buffer"):
-                        st.session_state.excel_buffer = results["excel_buffer"]
-                        st.session_state.filename = results["filename"]
-                        st.session_state.drive_file_id = results["drive_file_id"]
+                    if excel_buffer:
+                        st.session_state.excel_buffer = excel_buffer
+                        st.session_state.filename = filename
+                        st.session_state.drive_file_id = drive_file_id
     
                         end_time = time.time()
                         duration_sec = end_time - start_time
@@ -5063,10 +5066,12 @@ try:
                             st.success(
                                 f"✅ FORECAST ANALYSIS COMPLETED | REPORTS READY!\n\n"
                                 f"📅 Generated at: **{timestamp_str}**\n"
-                                f"⏱ Duration taken for analysis: **{duration_str}**")
+                                f"⏱ Duration taken for analysis: **{duration_str}**"
+                            )
                     else:
                         with result_container:
                             st.error("❌ Forecast Analysis Failed. Please try again.")
+
     
     # --- Neural Access Portal ---
     if st.session_state.excel_buffer:
@@ -5152,5 +5157,6 @@ except Exception as e:
         st.code(traceback.format_exc())
     except:
         pass
+
 
 

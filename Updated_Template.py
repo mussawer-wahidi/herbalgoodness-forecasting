@@ -5005,18 +5005,69 @@ with button_container:
                     time.sleep(0.05)
                     progress_bar.progress(i + 1)
 
+                # Replace your current Streamlit button handler with this enhanced version:
+                
                 try:
-                    # Run main() directly — errors will show in UI
-                    excel_buffer, drive_file_id = main()
-                    if excel_buffer is None:
-                        st.error("❌ Forecast Analysis Failed. Please check the logs.")
+                    # Add detailed logging before calling main()
+                    st.info("🔄 Starting forecast analysis...")
+                    
+                    # Call main() with better error capture
+                    result = main()
+                    
+                    # Debug the result
+                    st.write(f"Debug - main() returned: {type(result)}")
+                    if isinstance(result, tuple):
+                        st.write(f"Debug - tuple length: {len(result)}")
+                        st.write(f"Debug - values: {[type(x).__name__ for x in result]}")
+                    
+                    # Check for None returns (error cases)
+                    if result is None or (isinstance(result, tuple) and result[0] is None):
+                        st.error("❌ Forecast Analysis Failed. main() returned None - check the detailed logs below.")
+                        
+                        # Try to get more details from the logs
+                        st.subheader("🔍 Debugging Information")
+                        st.write("The main() function returned None, indicating an error occurred.")
+                        st.write("Common causes:")
+                        st.write("- File not found (CSV files missing)")
+                        st.write("- Google Sheets credentials issue")
+                        st.write("- Memory or timeout limits exceeded")
+                        st.write("- Network connectivity issues")
+                        
                         st.stop()
+                    
+                    # Unpack the result
+                    if isinstance(result, tuple) and len(result) == 2:
+                        excel_buffer, drive_file_id = result
+                    else:
+                        st.error(f"❌ main() returned unexpected format: {result}")
+                        st.stop()
+                        
                 except Exception as e:
                     import traceback
-                    st.error(f"❌ Forecast Analysis crashed: {type(e).__name__} - {e}")
-                    st.code(traceback.format_exc())
+                    error_traceback = traceback.format_exc()
+                    
+                    st.error(f"❌ Forecast Analysis crashed: {type(e).__name__} - {str(e)}")
+                    
+                    # Show detailed error information
+                    st.subheader("🔍 Detailed Error Information")
+                    st.code(error_traceback)
+                    
+                    # Show system information that might help debug
+                    st.subheader("💻 System Information")
+                    try:
+                        import os, sys
+                        st.write(f"Python version: {sys.version}")
+                        st.write(f"Working directory: {os.getcwd()}")
+                        st.write(f"Environment variables:")
+                        for key in ['GOOGLE_SHEETS_CREDENTIALS', 'gcp_service_account_sheets']:
+                            if key in os.environ:
+                                st.write(f"  {key}: {'SET' if os.environ[key] else 'EMPTY'}")
+                            else:
+                                st.write(f"  {key}: NOT SET")
+                    except Exception as sys_e:
+                        st.write(f"Could not get system info: {sys_e}")
+                    
                     st.stop()
-
                 # Finish progress bar
                 for i in range(40, 100):
                     stage_index = i // 14
@@ -5142,6 +5193,7 @@ st.markdown("""
 """, unsafe_allow_html=True)  # <-- closing triple quotes AND parenthesis
 
 st.markdown('</div>', unsafe_allow_html=True)
+
 
 
 

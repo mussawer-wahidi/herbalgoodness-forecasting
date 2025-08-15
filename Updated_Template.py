@@ -4996,7 +4996,6 @@ try:
     result_container = st.container()
     
     with button_container:
-    with button_container:
         if st.button("🚀 INITIATE FORECASTING ANALYSIS", key="generate_btn"):
     
             start_time = time.time()  # Track when button was clicked
@@ -5157,6 +5156,7 @@ except Exception as e:
         st.code(traceback.format_exc())
     except:
         pass
+
 
 
 

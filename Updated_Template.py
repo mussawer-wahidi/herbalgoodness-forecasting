@@ -3375,6 +3375,10 @@ def upload_to_google_drive_from_buffer(buffer):
 
          
 def main():
+    lead_times = {}
+    launch_dates = {}
+    product_info = {}
+
     try:               
         print("ENHANCED INVENTORY FORECASTING MODEL - COMPREHENSIVE VERSION")
         print("=" * 60)
@@ -4454,7 +4458,7 @@ def main():
         # Upload to Google Drive (NEW)
         drive_file_id = upload_to_google_drive_from_buffer(excel_buffer)
 
-        return excel_buffer, drive_file_id
+        return excel_buffer, filename, drive_file_id
 
 
     except FileNotFoundError as e:
@@ -5086,7 +5090,7 @@ with button_container:
                 # Show results
                 if excel_buffer:
                     st.session_state.excel_buffer = excel_buffer
-                   # st.session_state.filename = filename
+                    st.session_state.filename = filename
                     st.session_state.drive_file_id = drive_file_id
 
                     end_time = time.time()
@@ -5121,33 +5125,18 @@ if st.session_state.excel_buffer:
     
     col1, col2, col3 = st.columns(3, gap="large")
 
-    # with col1:
-    #     if st.download_button(
-    #         label="📥 DOWNLOAD EXCEL WORKBOOK" if not st.session_state.file_downloaded else "✅ WORKBOOK DOWNLOADED",
-    #         data=st.session_state.excel_buffer.getvalue(),
-    #         file_name=st.session_state.filename,
-    #         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    #         on_click=lambda: st.session_state.update({"file_downloaded": True}),
-    #         use_container_width=True,
-    #         help="Download forecast intelligence in Excel format"
-    #     ):
-    #         pass
-
     with col1:
-        # Generate filename when downloading
-        timestamp = pd.Timestamp.now().strftime("%Y%m%d_%H%M")
-        download_filename = f'enhanced_forecast_COMPREHENSIVE_{timestamp}.xlsx'
-        
         if st.download_button(
             label="📥 DOWNLOAD EXCEL WORKBOOK" if not st.session_state.file_downloaded else "✅ WORKBOOK DOWNLOADED",
             data=st.session_state.excel_buffer.getvalue(),
-            file_name=download_filename,  # Use dynamic filename
+            file_name=st.session_state.filename,
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             on_click=lambda: st.session_state.update({"file_downloaded": True}),
             use_container_width=True,
             help="Download forecast intelligence in Excel format"
         ):
             pass
+
 
     with col2:
         if st.session_state.drive_file_id:
@@ -5193,6 +5182,7 @@ st.markdown("""
 """, unsafe_allow_html=True)  # <-- closing triple quotes AND parenthesis
 
 st.markdown('</div>', unsafe_allow_html=True)
+
 
 
 

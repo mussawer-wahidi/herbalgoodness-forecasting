@@ -5015,36 +5015,60 @@ try:
                         "✨ Generating Intelligence Reports...",
                     ]
     
-                    # --- Progress simulation ---
-                    for i in range(100):
+                    # Progress simulation before running main()
+                    for i in range(40):  # Half the bar before main() runs
+                        stage_index = i // 6
+                        if stage_index < len(neural_stages):
+                            status_text.markdown(
+                                f'<p class="status-text">{neural_stages[stage_index]}</p>',
+                                unsafe_allow_html=True
+                            )
+                        time.sleep(0.05)
+                        progress_bar.progress(i + 1)
+                        
+                    try:
+                        # Run main() directly — errors will show in UI
+                        result = main()
+                    
+                        # Normalize result so we always have 3 variables
+                        if isinstance(result, tuple):
+                            if len(result) == 3:
+                                excel_buffer, filename, drive_file_id = result
+                            elif len(result) == 2:
+                                excel_buffer, filename = result
+                                drive_file_id = None
+                            else:
+                                raise ValueError(f"Unexpected number of return values from main(): {len(result)}")
+                        else:
+                            raise TypeError(f"main() returned a {type(result).__name__}, expected tuple")
+                    
+                    except Exception as e:
+                        import traceback
+                        st.error(f"❌ Forecast Analysis crashed: {type(e).__name__} - {e}")
+                        st.code(traceback.format_exc())
+                        st.stop()
+
+    
+                    # Finish progress bar
+                    for i in range(40, 100):
                         stage_index = i // 14
                         if stage_index < len(neural_stages):
                             status_text.markdown(
                                 f'<p class="status-text">{neural_stages[stage_index]}</p>',
                                 unsafe_allow_html=True
                             )
-                        time.sleep(0.5)
+                        time.sleep(0.02)
                         progress_bar.progress(i + 1)
     
-                    # --- Run main() directly ---
-                    results = {}
-                    try:
-                        main_return = main()
-                        keys = ("excel_buffer", "filename", "drive_file_id")
-                        results.update(zip(keys, main_return))
-                    except Exception as e:
-                        st.error(f"❌ Error during forecasting: {e}")
-                        logging.error(traceback.format_exc())
-    
-                    # --- Clear progress UI ---
+                    # Clear progress UI
                     progress_bar.empty()
                     status_text.empty()
     
-                    # --- Show results ---
-                    if results.get("excel_buffer"):
-                        st.session_state.excel_buffer = results.get("excel_buffer")
-                        st.session_state.filename = results.get("filename")
-                        st.session_state.drive_file_id = results.get("drive_file_id")
+                    # Show results
+                    if excel_buffer:
+                        st.session_state.excel_buffer = excel_buffer
+                        st.session_state.filename = filename
+                        st.session_state.drive_file_id = drive_file_id
     
                         end_time = time.time()
                         duration_sec = end_time - start_time
@@ -5055,7 +5079,8 @@ try:
                             st.success(
                                 f"✅ FORECAST ANALYSIS COMPLETED | REPORTS READY!\n\n"
                                 f"📅 Generated at: **{timestamp_str}**\n"
-                                f"⏱ Duration taken for analysis: **{duration_str}**")
+                                f"⏱ Duration taken for analysis: **{duration_str}**"
+                            )
                     else:
                         with result_container:
                             st.error("❌ Forecast Analysis Failed. Please try again.")
@@ -5146,6 +5171,7 @@ except Exception as e:
         st.code(traceback.format_exc())
     except:
         pass
+
 
 
 

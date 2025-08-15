@@ -3302,25 +3302,26 @@ def upload_to_google_drive_from_buffer(buffer):
     FOLDER_ID = '0ANRBYKNxrAXaUk9PVA'
     FIXED_FILENAME = "Forecasting Excel Workbook Format.xlsx"
 
-    # Handle service account credentials
-    local_drive_key = os.path.join(BASE_DIR, "GoogleDriveAPIKey.json")
-
-    if os.path.exists(local_drive_key):
-        SERVICE_ACCOUNT_FILE = local_drive_key
-        print(f"✅ Using local Google Drive credentials: {SERVICE_ACCOUNT_FILE}")
-    elif "gcp_service_account_drive" in os.environ:
-        creds_dict = json.loads(os.environ["gcp_service_account_drive"])
-        with open("temp_service_account.json", "w") as f:
-            json.dump(dict(creds_dict), f)
-        SERVICE_ACCOUNT_FILE = "temp_service_account.json"
-        print("✅ Using Google Drive credentials from Streamlit secrets")
-    else:
-        raise FileNotFoundError(
-            "❌ No local Google Drive credentials or Streamlit secrets found."
-        )
-
+    # Handle service account credentials - GCP only
+    if "gcp_service_account_drive" not in os.environ:
+        raise FileNotFoundError("❌ No Google Drive service account credentials found in environment variables.")
+    
+    print("🔄 Using Google Drive credentials from environment...")
+    
+    # Load credentials from environment
+    creds_dict = json.loads(os.environ["gcp_service_account_drive"])
+    
+    # Write to temporary file (required for from_service_account_file)
+    SERVICE_ACCOUNT_FILE = "temp_service_account.json"
+    with open(SERVICE_ACCOUNT_FILE, "w") as f:
+        json.dump(creds_dict, f)
+    
+    print("✅ Google Drive credentials loaded and saved to temp file.")
+    
+    # Initialize credentials and service
     credentials = service_account.Credentials.from_service_account_file(
-        SERVICE_ACCOUNT_FILE, scopes=SCOPES)
+        SERVICE_ACCOUNT_FILE, scopes=SCOPES
+    )
     drive_service = build('drive', 'v3', credentials=credentials)
 
     # Check if file with same name already exists
@@ -3399,47 +3400,28 @@ def main():
         
         if USE_GOOGLE_SHEETS and GOOGLE_SHEETS_AVAILABLE:
             try:
-                print(f"Current working directory: {os.getcwd()}")
-                print("Looking for credentials file...")
-
-                print(f"BASE_DIR: {BASE_DIR}")
-
-                # Define credential paths FIRST
-                credential_paths = [
-                    os.path.join(BASE_DIR, "credentials.json"),
-                    os.path.join(BASE_DIR, "service-account-key.json"),
-                    os.path.join(BASE_DIR, "config", "credentials.json"),
-                    os.path.join(BASE_DIR, "config", "service-account-key.json"),
-                ]
-
-                print("Checking paths:")
-                for p in credential_paths:
-                    print(" -", p, "| Exists:", os.path.exists(p))
-
-                credentials_file = None
-                for path in credential_paths:
-                    if os.path.exists(path):
-                        credentials_file = path
-                        print(f"✅ Found local credentials file: {path}")
-                        break
-
-                # If no local file, try Streamlit Cloud secrets
-                if not credentials_file and "gcp_service_account_sheets" in os.environ:
-                    creds_dict = json.loads(os.environ["gcp_service_account_sheets"])
-                    with open("temp_credentials.json", "w") as f:
-                        json.dump(dict(creds_dict), f)
-                    credentials_file = "temp_credentials.json"
-                    print("✅ Loaded credentials from Streamlit Cloud secrets")
-
-                # If still nothing, fall back to CSV
-                if not credentials_file:
-                    print("❌ No credentials file found locally or in secrets. Falling back to CSV...")
-                    raise FileNotFoundError("No credentials file found")
-
+                print("🔄 Using GCP credentials from environment...")
+        
+                # Ensure env var is present
+                if "gcp_service_account_sheets" not in os.environ:
+                    raise FileNotFoundError("❌ No GCP service account credentials found in environment variables.")
+        
+                # Load credentials from environment variable
+                creds_dict = json.loads(os.environ["gcp_service_account_sheets"])
+        
+                # Write to temporary file
+                credentials_file = "temp_credentials.json"
+                with open(credentials_file, "w") as f:
+                    json.dump(creds_dict, f)
+        
+                print("✅ Credentials loaded from environment and saved to temp file.")
+        
                 # Create Google Sheets connector
                 gs_connector = GoogleSheetsConnector(credentials_file)
-
-
+        
+            except Exception as e:
+                print(f"❌ Failed to initialize Google Sheets connector: {e}")
+                raise
 
                 # Get inventory data from Google Sheets
                 print(f"\n📦 Loading inventory data from Google Sheets...")
@@ -5141,6 +5123,7 @@ st.markdown("""
 """, unsafe_allow_html=True)  # <-- closing triple quotes AND parenthesis
 
 st.markdown('</div>', unsafe_allow_html=True)
+
 
 
 

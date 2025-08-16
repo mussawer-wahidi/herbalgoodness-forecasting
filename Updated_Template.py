@@ -3386,7 +3386,6 @@ def main():
         INVENTORY_URL = "https://docs.google.com/spreadsheets/d/1_j7eJi52Kq8RHvK6e0RPBRK8wJ0DXUOMj7Z7yZHlZzM/edit?gid=404505721#gid=404505721"
         USE_GOOGLE_SHEETS = True
 
-
         print("Loading data files...")
 
         historical_sales_path = os.path.join(BASE_DIR, "historical_sales.csv")
@@ -3429,138 +3428,105 @@ def main():
                 # Create connector
                 gs_connector = GoogleSheetsConnector(credentials_file)
         
-            except Exception as e:
-                print(f"❌ Failed to initialize Google Sheets connector: {e}")
-                raise
-        
-            # Now try getting inventory
-            print(f"\n📦 Loading inventory data from Google Sheets...")
-            inventory = gs_connector.get_inventory_data(INVENTORY_URL)
-            print(f"   Current inventory from Google Sheets: {len(inventory)} SKUs")
+                # Now try getting inventory
+                print(f"\n📦 Loading inventory data from Google Sheets...")
+                inventory = gs_connector.get_inventory_data(INVENTORY_URL)
+                print(f"   Current inventory from Google Sheets: {len(inventory)} SKUs")
 
-            # try:
-            #     print("🔄 Using GCP credentials from environment...")
-            #     # Ensure env var is present
-            #     if "gcp_service_account_sheets" not in os.environ:
-            #         raise FileNotFoundError("❌ No GCP service account credentials found in environment variables.")
-        
-            #     # Load credentials from environment variable
-            #     creds_dict = json.loads(os.environ["gcp_service_account_sheets"])
-        
-            #     # Write to temporary file
-            #     credentials_file = "temp_credentials.json"
-            #     with open(credentials_file, "w") as f:
-            #         json.dump(creds_dict, f)
-        
-            #     print("✅ Credentials loaded from environment and saved to temp file.")
-        
-            #     # Create Google Sheets connector
-            #     gs_connector = GoogleSheetsConnector(credentials_file)
-        
-            # except Exception as e:
-            #     print(f"❌ Failed to initialize Google Sheets connector: {e}")
-            #     raise
+                # Get product info and lead times
+                product_info, lead_times, launch_dates, product_category, product_status = gs_connector.get_product_data(GOOGLE_SHEET_URL)
 
-            #     # Get inventory data from Google Sheets
-            #     print(f"\n📦 Loading inventory data from Google Sheets...")
-            #     inventory = gs_connector.get_inventory_data(INVENTORY_URL)
-            #     print(f"   Current inventory from Google Sheets: {len(inventory)} SKUs")
+                print(f"   Product info from Google Sheets: {len(product_info)} SKUs")
+                print(f"   Lead times from Google Sheets: {len(lead_times)} SKUs")
+                print(f"   Launch dates from Google Sheets: {len([d for d in launch_dates.values() if d is not None])} SKUs")
 
-            # Get product info and lead times
-            product_info, lead_times, launch_dates, product_category, product_status = gs_connector.get_product_data(GOOGLE_SHEET_URL)
+                # Step 1: Load and extend Amazon weekly
+                print(f"\nLoading Amazon FBA weekly sales data...")
+                amazon_weekly_df = gs_connector.get_amazon_fba_weekly_sales(WEEKLY_SALES_URL)
 
-            print(f"   Product info from Google Sheets: {len(product_info)} SKUs")
-            print(f"   Lead times from Google Sheets: {len(lead_times)} SKUs")
-            print(f"   Launch dates from Google Sheets: {len([d for d in launch_dates.values() if d is not None])} SKUs")
+                if not amazon_weekly_df.empty:
+                    amazon_weekly_monthly = gs_connector.convert_amazon_weekly_to_monthly(amazon_weekly_df)
+                    amazon_extended = gs_connector.extend_historical_data_with_amazon_weekly(historical_data.copy(), amazon_weekly_monthly)
+                    print(f"✅ Amazon FBA data extended")
+                else:
+                    amazon_extended = historical_data.copy()
+                    print("⚠️ No Amazon FBA weekly sales data found")
 
-            # Step 1: Load and extend Amazon weekly
-            print(f"\nLoading Amazon FBA weekly sales data...")
-            amazon_weekly_df = gs_connector.get_amazon_fba_weekly_sales(WEEKLY_SALES_URL)
+                # Step 2: Load and extend Shopify weekly
+                print(f"\nLoading Shopify Main weekly sales data...")
+                shopify_weekly_df = gs_connector.get_shopify__weekly_sales(WEEKLY_SALES_URL)
 
-            if not amazon_weekly_df.empty:
-                amazon_weekly_monthly = gs_connector.convert_amazon_weekly_to_monthly(amazon_weekly_df)
-                amazon_extended = gs_connector.extend_historical_data_with_amazon_weekly(historical_data.copy(), amazon_weekly_monthly)
-                print(f"✅ Amazon FBA data extended")
-            else:
-                amazon_extended = historical_data.copy()
-                print("⚠️ No Amazon FBA weekly sales data found")
+                if not shopify_weekly_df.empty:
+                    shopify_weekly_monthly = gs_connector.convert_shopify_weekly_to_monthly(shopify_weekly_df)
+                    shopify_extended = gs_connector.extend_historical_data_with_shopify_weekly(historical_data.copy(), shopify_weekly_monthly)
+                    print(f"✅ Shopify Main data extended")
+                else:
+                    shopify_extended = historical_data.copy()
+                    print("⚠️ No Shopify Main weekly sales data found")
 
-            # Step 2: Load and extend Shopify weekly
-            print(f"\nLoading Shopify Main weekly sales data...")
-            shopify_weekly_df = gs_connector.get_shopify__weekly_sales(WEEKLY_SALES_URL)
+                ### Shopify Faire    
+                print(f"\nLoading Shopify Faire weekly sales data...")
+                shopify_faire_weekly_df = gs_connector.get_shopify_faire_weekly_sales(WEEKLY_SALES_URL)
 
-            if not shopify_weekly_df.empty:
-                shopify_weekly_monthly = gs_connector.convert_shopify_weekly_to_monthly(shopify_weekly_df)
-                shopify_extended = gs_connector.extend_historical_data_with_shopify_weekly(historical_data.copy(), shopify_weekly_monthly)
-                print(f"✅ Shopify Main data extended")
-            else:
-                shopify_extended = historical_data.copy()
-                print("⚠️ No Shopify Main weekly sales data found")
+                if not shopify_faire_weekly_df.empty:
+                    shopify_faire_weekly_monthly = gs_connector.convert_shopify_faire_weekly_to_monthly(shopify_faire_weekly_df)
+                    shopify_faire_extended = gs_connector.extend_historical_data_with_shopify_faire_weekly(historical_data.copy(), shopify_faire_weekly_monthly)
+                    print(f"✅ Shopify Faire data extended")
+                else:
+                    shopify_faire_extended = historical_data.copy()
+                    print("⚠️ No Shopify Faire weekly sales data found")
 
-            ### Shopify Faire    
+                ### Walmart FBM
+                print(f"\nLoading Walmart FBM weekly sales data...")
+                walmart_fbm_weekly_df = gs_connector.get_walmart_fbm_weekly_sales(WEEKLY_SALES_URL)
 
-            print(f"\nLoading Shopify Faire weekly sales data...")
-            shopify_faire_weekly_df = gs_connector.get_shopify_faire_weekly_sales(WEEKLY_SALES_URL)
+                if not walmart_fbm_weekly_df.empty:
+                    walmart_fbm_weekly_monthly = gs_connector.convert_walmart_fbm_weekly_to_monthly(walmart_fbm_weekly_df)
+                    walmart_fbm_extended = gs_connector.extend_historical_data_with_walmart_fbm_weekly(historical_data.copy(), walmart_fbm_weekly_monthly)
+                    print(f"✅ Walmart FBM data extended")
+                else:
+                    walmart_fbm_extended = historical_data.copy()
+                    print("⚠️ No Walmart FBM weekly sales data found")
 
-            if not shopify_faire_weekly_df.empty:
-                shopify_faire_weekly_monthly = gs_connector.convert_shopify_faire_weekly_to_monthly(shopify_faire_weekly_df)
-                shopify_faire_extended = gs_connector.extend_historical_data_with_shopify_faire_weekly(historical_data.copy(), shopify_faire_weekly_monthly)
-                print(f"✅ Shopify Faire data extended")
-            else:
-                shopify_faire_extended = historical_data.copy()
-                print("⚠️ No Shopify Faire weekly sales data found")
+                ### Amazon FBM
+                print(f"\nLoading Amazon FBM weekly sales data...")
+                amazon_fbm_weekly_df = gs_connector.get_amazon_fbm_weekly_sales(WEEKLY_SALES_URL)
 
-            ### Walmart FBM
-            print(f"\nLoading Walmart FBM weekly sales data...")
-            walmart_fbm_weekly_df = gs_connector.get_walmart_fbm_weekly_sales(WEEKLY_SALES_URL)
+                if not amazon_fbm_weekly_df.empty:
+                    amazon_fbm_weekly_monthly = gs_connector.convert_amazon_fbm_weekly_to_monthly(amazon_fbm_weekly_df)
+                    amazon_fbm_extended = gs_connector.extend_historical_data_with_amazon_fbm_weekly(historical_data.copy(), amazon_fbm_weekly_monthly)
+                    print(f"✅ Amazon FBM data extended")
+                else:
+                    amazon_fbm_extended = historical_data.copy()
+                    print("⚠️ No Amazon FBM weekly sales data found")
 
-            if not walmart_fbm_weekly_df.empty:
-                walmart_fbm_weekly_monthly = gs_connector.convert_walmart_fbm_weekly_to_monthly(walmart_fbm_weekly_df)
-                walmart_fbm_extended = gs_connector.extend_historical_data_with_walmart_fbm_weekly(historical_data.copy(), walmart_fbm_weekly_monthly)
-                print(f"✅ Walmart FBM data extended")
-            else:
-                walmart_fbm_extended = historical_data.copy()
-                print("⚠️ No Walmart FBM weekly sales data found")
+                # Step 3: Combine Amazon + Shopify extended data
+                historical_data = pd.concat([amazon_extended, shopify_extended, shopify_faire_extended, walmart_fbm_extended, amazon_fbm_extended], ignore_index=True)
+                historical_data = historical_data.drop_duplicates(subset=['SKU', 'Channel', 'Date'], keep='last')
+                historical_data = historical_data.sort_values(by=['SKU', 'Channel', 'Date'])
 
-            ### Amazon FBM
-            print(f"\nLoading Amazon FBM weekly sales data...")
-            amazon_fbm_weekly_df = gs_connector.get_amazon_fbm_weekly_sales(WEEKLY_SALES_URL)
+                historical_skus = set(historical_data['SKU'].unique())
+                google_skus = set(product_info.keys())
 
-            if not amazon_fbm_weekly_df.empty:
-                amazon_fbm_weekly_monthly = gs_connector.convert_amazon_fbm_weekly_to_monthly(amazon_fbm_weekly_df)
-                amazon_fbm_extended = gs_connector.extend_historical_data_with_amazon_fbm_weekly(historical_data.copy(), amazon_fbm_weekly_monthly)
-                print(f"✅ Amazon FBM data extended")
-            else:
-                amazon_fbm_extended = historical_data.copy()
-                print("⚠️ No Amazon FBM weekly sales data found")
+                print(f"\n🔍 ENHANCED SKU MATCHING DEBUG:")
+                print(f"   Historical data has {len(historical_skus)} unique SKUs")
+                print(f"   Google Sheets has {len(google_skus)} unique SKUs")
 
-            # Step 3: Combine Amazon + Shopify extended data
-            historical_data = pd.concat([amazon_extended, shopify_extended, shopify_faire_extended, walmart_fbm_extended, amazon_fbm_extended], ignore_index=True)
-            historical_data = historical_data.drop_duplicates(subset=['SKU', 'Channel', 'Date'], keep='last')
-            historical_data = historical_data.sort_values(by=['SKU', 'Channel', 'Date'])
+                # Test direct matches
+                direct_matches = historical_skus.intersection(google_skus)
+                print(f"   Direct matches: {len(direct_matches)}")
+                print(f"   Sample direct matches: {list(direct_matches)[:5]}")
 
-            historical_skus = set(historical_data['SKU'].unique())
-            google_skus = set(product_info.keys())
+                # Test the lookup function directly
+                print(f"   Testing smart_sku_lookup function:")
+                test_skus = ['810128951111', '810128951128', '810128951203']  # From the sample
+                for test_sku in test_skus:
+                    direct_result = product_info.get(test_sku, 'NOT_FOUND_DIRECT')
+                    print(f"     {test_sku} -> Direct: {direct_result}")
 
-            print(f"\n🔍 ENHANCED SKU MATCHING DEBUG:")
-            print(f"   Historical data has {len(historical_skus)} unique SKUs")
-            print(f"   Google Sheets has {len(google_skus)} unique SKUs")
-
-            # Test direct matches
-            direct_matches = historical_skus.intersection(google_skus)
-            print(f"   Direct matches: {len(direct_matches)}")
-            print(f"   Sample direct matches: {list(direct_matches)[:5]}")
-
-            # Test the lookup function directly
-            print(f"   Testing smart_sku_lookup function:")
-            test_skus = ['810128951111', '810128951128', '810128951203']  # From the sample
-            for test_sku in test_skus:
-                direct_result = product_info.get(test_sku, 'NOT_FOUND_DIRECT')
-                print(f"     {test_sku} -> Direct: {direct_result}")
-
-                # Test if it's in the set
-                in_google_skus = test_sku in google_skus
-                print(f"     {test_sku} -> In google_skus: {in_google_skus}")
+                    # Test if it's in the set
+                    in_google_skus = test_sku in google_skus
+                    print(f"     {test_sku} -> In google_skus: {in_google_skus}")
 
             except Exception as e:
                 print(f"❌ Error loading from Google Sheets: {e}")
@@ -3568,6 +3534,7 @@ def main():
                 USE_GOOGLE_SHEETS = False
         else:
             USE_GOOGLE_SHEETS = False
+
 
         if not USE_GOOGLE_SHEETS:
             # Fall back to CSV for inventory
@@ -5216,6 +5183,7 @@ st.markdown("""
 """, unsafe_allow_html=True)  # <-- closing triple quotes AND parenthesis
 
 st.markdown('</div>', unsafe_allow_html=True)
+
 
 
 

@@ -24,16 +24,13 @@ import gspread
 from google.oauth2.service_account import Credentials
 
 
-def global_exception_hook(exc_type, exc_value, exc_traceback):
-    if issubclass(exc_type, KeyboardInterrupt):
-        # Allow Ctrl+C to still stop the program
-        sys.__excepthook__(exc_type, exc_value, exc_traceback)
+def ignore_indexerror(exctype, value, traceback):
+    if exctype == IndexError:
+        print(f"⚠️ Ignored IndexError: {value}")
         return
-    print("🔥 Uncaught exception:", "".join(traceback.format_exception(exc_type, exc_value, exc_traceback)))
+    sys.__excepthook__(exctype, value, traceback)
 
-# Override default exception hook
-sys.excepthook = global_exception_hook
-
+sys.excepthook = ignore_indexerror
 
 warnings.filterwarnings('ignore')
 
@@ -5196,6 +5193,7 @@ st.markdown("""
 """, unsafe_allow_html=True)  # <-- closing triple quotes AND parenthesis
 
 st.markdown('</div>', unsafe_allow_html=True)
+
 
 
 

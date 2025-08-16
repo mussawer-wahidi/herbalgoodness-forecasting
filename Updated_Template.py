@@ -1882,8 +1882,8 @@ class EnhancedForecastingModel:
                         'PO_Urgency': urgency,
                         'Recommended_PO_Qty': po_quantity,
                         'Next_Order_Date': order_dates[0] if order_dates else pd.Timestamp.now() + pd.DateOffset(days=30),
-                        'Next_Order_Qty': order_qtys[0],
-                        'Next_Arrival_Date': arrival_dates[0],
+                        'Next_Order_Qty': order_qtys[0] if order_qtys else 0,
+                        'Next_Arrival_Date': arrival_dates[0] if arrival_dates else pd.Timestamp.now() + pd.DateOffset(days=45),
                         'Months_of_Inventory': months_of_inventory,
                         'Velocity_Category': velocity_category,
                         'Safety_Stock_Months': safety_stock_months,
@@ -2516,8 +2516,8 @@ class EnhancedForecastingModel:
                         'PO_Urgency': urgency,
                         'Recommended_PO_Qty': po_quantity,
                         'Next_Order_Date': order_dates[0] if order_dates else pd.Timestamp.now() + pd.DateOffset(days=30),
-                        'Next_Order_Qty': order_qtys[0],
-                        'Next_Arrival_Date': arrival_dates[0],
+                        'Next_Order_Qty': order_qtys[0] if order_qtys else 0,
+                        'Next_Arrival_Date': arrival_dates[0] if arrival_dates else pd.Timestamp.now() + pd.DateOffset(days=45),
                         'Months_of_Inventory': months_of_inventory,
                         'Velocity_Category': velocity_category,
                         'Safety_Stock_Months': safety_stock_months,
@@ -2706,8 +2706,8 @@ class EnhancedForecastingModel:
                             'PO_Urgency': urgency,
                             'Recommended_PO_Qty': po_quantity,
                             'Next_Order_Date': order_dates[0] if order_dates else pd.Timestamp.now() + pd.DateOffset(days=30),
-                            'Next_Order_Qty': order_qtys[0],
-                            'Next_Arrival_Date': arrival_dates[0],
+                            'Next_Order_Qty': order_qtys[0] if order_qtys else 0,
+                            'Next_Arrival_Date': arrival_dates[0] if arrival_dates else pd.Timestamp.now() + pd.DateOffset(days=45),
                             'Months_of_Inventory': months_of_inventory,
                             'Velocity_Category': velocity_category,
                             'Safety_Stock_Months': safety_stock_months,
@@ -2984,8 +2984,8 @@ class EnhancedForecastingModel:
                             'PO_Urgency': urgency,
                             'Recommended_PO_Qty': po_quantity,
                             'Next_Order_Date': order_dates[0] if order_dates else pd.Timestamp.now() + pd.DateOffset(days=30),
-                            'Next_Order_Qty': order_qtys[0],
-                            'Next_Arrival_Date': arrival_dates[0],
+                            'Next_Order_Qty': order_qtys[0] if order_qtys else 0,
+                            'Next_Arrival_Date': arrival_dates[0] if arrival_dates else pd.Timestamp.now() + pd.DateOffset(days=45),
                             'Months_of_Inventory': months_of_inventory,
                             'Velocity_Category': velocity_category,
                             'Safety_Stock_Months': safety_stock_months,
@@ -3174,8 +3174,8 @@ class EnhancedForecastingModel:
                             'PO_Urgency': urgency,
                             'Recommended_PO_Qty': po_quantity,
                             'Next_Order_Date': order_dates[0] if order_dates else pd.Timestamp.now() + pd.DateOffset(days=30),
-                            'Next_Order_Qty': order_qtys[0],
-                            'Next_Arrival_Date': arrival_dates[0],
+                            'Next_Order_Qty': order_qtys[0] if order_qtys else 0,
+                            'Next_Arrival_Date': arrival_dates[0] if arrival_dates else pd.Timestamp.now() + pd.DateOffset(days=45),
                             'Months_of_Inventory': months_of_inventory,
                             'Velocity_Category': velocity_category,
                             'Safety_Stock_Months': safety_stock_months,
@@ -5193,6 +5193,7 @@ st.markdown("""
 """, unsafe_allow_html=True)  # <-- closing triple quotes AND parenthesis
 
 st.markdown('</div>', unsafe_allow_html=True)
+
 
 
 

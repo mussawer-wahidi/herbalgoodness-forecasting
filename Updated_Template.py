@@ -3454,7 +3454,7 @@ def main():
 
                 # Step 2: Load and extend Shopify weekly
                 print(f"\nLoading Shopify Main weekly sales data...")
-                shopify_weekly_df = gs_connector.get_shopify__weekly_sales(WEEKLY_SALES_URL)
+                shopify_weekly_df = gs_connector.get_shopify_main_weekly_sales(WEEKLY_SALES_URL)
 
                 if not shopify_weekly_df.empty:
                     shopify_weekly_monthly = gs_connector.convert_shopify_weekly_to_monthly(shopify_weekly_df)
@@ -5183,6 +5183,7 @@ st.markdown("""
 """, unsafe_allow_html=True)  # <-- closing triple quotes AND parenthesis
 
 st.markdown('</div>', unsafe_allow_html=True)
+
 
 
 

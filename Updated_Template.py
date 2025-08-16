@@ -23,6 +23,18 @@ from googleapiclient.http import MediaIoBaseUpload
 import gspread
 from google.oauth2.service_account import Credentials
 
+
+def global_exception_hook(exc_type, exc_value, exc_traceback):
+    if issubclass(exc_type, KeyboardInterrupt):
+        # Allow Ctrl+C to still stop the program
+        sys.__excepthook__(exc_type, exc_value, exc_traceback)
+        return
+    print("🔥 Uncaught exception:", "".join(traceback.format_exception(exc_type, exc_value, exc_traceback)))
+
+# Override default exception hook
+sys.excepthook = global_exception_hook
+
+
 warnings.filterwarnings('ignore')
 
 # Always reference files relative to the script's directory
@@ -3564,61 +3576,15 @@ def main():
 
         model = EnhancedForecastingModel(historical_data, lead_times, launch_dates, service_level=0.95)
 
-        # print("\nGenerating forecasts...")
-        # amazon_forecast = model.create_enhanced_forecast('Amazon', inventory, product_info, product_category, product_status)
-        # shopify_forecast = model.create_enhanced_forecast_shopify_special('Shopify', inventory, product_info, product_category, product_status)
-        # shopify_faire_forecast = model.create_enhanced_forecast_shopify_faire_special('Shopify Faire', inventory, product_info, product_category, product_status)
-        # amazon_fbm_forecast = model.create_enhanced_forecast_amazon_fbm_special('Amazonfbm', inventory, product_info, product_category, product_status)
-        # walmart_fbm_forecast = model.create_enhanced_forecast_walmart_fbm_special('Walmartfbm', inventory, product_info, product_category, product_status)
+        print("\nGenerating forecasts...")
+        amazon_forecast = model.create_enhanced_forecast('Amazon', inventory, product_info, product_category, product_status)
+        shopify_forecast = model.create_enhanced_forecast_shopify_special('Shopify', inventory, product_info, product_category, product_status)
+        shopify_faire_forecast = model.create_enhanced_forecast_shopify_faire_special('Shopify Faire', inventory, product_info, product_category, product_status)
+        amazon_fbm_forecast = model.create_enhanced_forecast_amazon_fbm_special('Amazonfbm', inventory, product_info, product_category, product_status)
+        walmart_fbm_forecast = model.create_enhanced_forecast_walmart_fbm_special('Walmartfbm', inventory, product_info, product_category, product_status)
 
-        # print("Creating combined channel analysis...")
-        # combined_forecast = model.combine_channel_forecasts(amazon_forecast, shopify_forecast, shopify_faire_forecast, amazon_fbm_forecast, walmart_fbm_forecast)
-        
-        if model:
-            print("\nGenerating forecasts...")
-        
-            try:
-                amazon_forecast = model.create_enhanced_forecast('Amazon', inventory, product_info, product_category, product_status)
-            except Exception as e:
-                print(f"⚠️ Amazon forecast failed: {e}")
-                amazon_forecast = None
-        
-            try:
-                shopify_forecast = model.create_enhanced_forecast_shopify_special('Shopify', inventory, product_info, product_category, product_status)
-            except Exception as e:
-                print(f"⚠️ Shopify forecast failed: {e}")
-                shopify_forecast = None
-        
-            try:
-                shopify_faire_forecast = model.create_enhanced_forecast_shopify_faire_special('Shopify Faire', inventory, product_info, product_category, product_status)
-            except Exception as e:
-                print(f"⚠️ Shopify Faire forecast failed: {e}")
-                shopify_faire_forecast = None
-        
-            try:
-                amazon_fbm_forecast = model.create_enhanced_forecast_amazon_fbm_special('Amazonfbm', inventory, product_info, product_category, product_status)
-            except Exception as e:
-                print(f"⚠️ Amazon FBM forecast failed: {e}")
-                amazon_fbm_forecast = None
-        
-            try:
-                walmart_fbm_forecast = model.create_enhanced_forecast_walmart_fbm_special('Walmartfbm', inventory, product_info, product_category, product_status)
-            except Exception as e:
-                print(f"⚠️ Walmart FBM forecast failed: {e}")
-                walmart_fbm_forecast = None
-        
-            print("Creating combined channel analysis...")
-            try:
-                combined_forecast = model.combine_channel_forecasts(
-                    amazon_forecast,
-                    shopify_forecast,
-                    shopify_faire_forecast,
-                    amazon_fbm_forecast,
-                    walmart_fbm_forecast
-                )
-            except Exception as e:
-                print(f"⚠️ Combined forecast creation failed: {e}")
-                combined_forecast = None
+        print("Creating combined channel analysis...")
+        combined_forecast = model.combine_channel_forecasts(amazon_forecast, shopify_forecast, shopify_faire_forecast, amazon_fbm_forecast, walmart_fbm_forecast)
 
 
         # Generate actionable insights
@@ -5230,6 +5196,7 @@ st.markdown("""
 """, unsafe_allow_html=True)  # <-- closing triple quotes AND parenthesis
 
 st.markdown('</div>', unsafe_allow_html=True)
+
 
 
 

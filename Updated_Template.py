@@ -1881,7 +1881,7 @@ class EnhancedForecastingModel:
                         'Stock_Status': stock_status,
                         'PO_Urgency': urgency,
                         'Recommended_PO_Qty': po_quantity,
-                        'Next_Order_Date': order_dates[0],
+                        'Next_Order_Date': order_dates[0] if order_dates else pd.Timestamp.now() + pd.DateOffset(days=30),
                         'Next_Order_Qty': order_qtys[0],
                         'Next_Arrival_Date': arrival_dates[0],
                         'Months_of_Inventory': months_of_inventory,
@@ -2515,7 +2515,7 @@ class EnhancedForecastingModel:
                         'Stock_Status': stock_status,
                         'PO_Urgency': urgency,
                         'Recommended_PO_Qty': po_quantity,
-                        'Next_Order_Date': order_dates[0],
+                        'Next_Order_Date': order_dates[0] if order_dates else pd.Timestamp.now() + pd.DateOffset(days=30),
                         'Next_Order_Qty': order_qtys[0],
                         'Next_Arrival_Date': arrival_dates[0],
                         'Months_of_Inventory': months_of_inventory,
@@ -2705,7 +2705,7 @@ class EnhancedForecastingModel:
                             'Stock_Status': stock_status,
                             'PO_Urgency': urgency,
                             'Recommended_PO_Qty': po_quantity,
-                            'Next_Order_Date': order_dates[0],
+                            'Next_Order_Date': order_dates[0] if order_dates else pd.Timestamp.now() + pd.DateOffset(days=30),
                             'Next_Order_Qty': order_qtys[0],
                             'Next_Arrival_Date': arrival_dates[0],
                             'Months_of_Inventory': months_of_inventory,
@@ -2983,7 +2983,7 @@ class EnhancedForecastingModel:
                             'Stock_Status': stock_status,
                             'PO_Urgency': urgency,
                             'Recommended_PO_Qty': po_quantity,
-                            'Next_Order_Date': order_dates[0],
+                            'Next_Order_Date': order_dates[0] if order_dates else pd.Timestamp.now() + pd.DateOffset(days=30),
                             'Next_Order_Qty': order_qtys[0],
                             'Next_Arrival_Date': arrival_dates[0],
                             'Months_of_Inventory': months_of_inventory,
@@ -3173,7 +3173,7 @@ class EnhancedForecastingModel:
                             'Stock_Status': stock_status,
                             'PO_Urgency': urgency,
                             'Recommended_PO_Qty': po_quantity,
-                            'Next_Order_Date': order_dates[0],
+                            'Next_Order_Date': order_dates[0] if order_dates else pd.Timestamp.now() + pd.DateOffset(days=30),
                             'Next_Order_Qty': order_qtys[0],
                             'Next_Arrival_Date': arrival_dates[0],
                             'Months_of_Inventory': months_of_inventory,
@@ -5193,6 +5193,7 @@ st.markdown("""
 """, unsafe_allow_html=True)  # <-- closing triple quotes AND parenthesis
 
 st.markdown('</div>', unsafe_allow_html=True)
+
 
 
 

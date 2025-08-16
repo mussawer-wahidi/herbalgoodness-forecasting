@@ -11,6 +11,9 @@ import threading
 from sklearn.linear_model import LinearRegression
 from streamlit_extras.stylable_container import stylable_container
 import warnings
+import traceback
+import logging
+import sys
 import io
 from io import BytesIO
 import streamlit as st
@@ -19,6 +22,15 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload
 import gspread
 from google.oauth2.service_account import Credentials
+
+
+def ignore_indexerror(exctype, value, traceback):
+    if exctype == IndexError:
+        print(f"⚠️ Ignored IndexError: {value}")
+        return
+    sys.__excepthook__(exctype, value, traceback)
+
+sys.excepthook = ignore_indexerror
 
 warnings.filterwarnings('ignore')
 
@@ -158,6 +170,7 @@ class GoogleSheetsConnector:
 
             # Get all values to handle duplicate headers manually
             all_values = worksheet.get_all_values()
+            time.sleep(5)
 
             if not all_values:
                 print("No data found in the worksheet")
@@ -1868,9 +1881,9 @@ class EnhancedForecastingModel:
                         'Stock_Status': stock_status,
                         'PO_Urgency': urgency,
                         'Recommended_PO_Qty': po_quantity,
-                        'Next_Order_Date': order_dates[0],
-                        'Next_Order_Qty': order_qtys[0],
-                        'Next_Arrival_Date': arrival_dates[0],
+                        'Next_Order_Date': order_dates[0] if order_dates else pd.Timestamp.now() + pd.DateOffset(days=30),
+                        'Next_Order_Qty': order_qtys[0] if order_qtys else 0,
+                        'Next_Arrival_Date': arrival_dates[0] if arrival_dates else pd.Timestamp.now() + pd.DateOffset(days=45),
                         'Months_of_Inventory': months_of_inventory,
                         'Velocity_Category': velocity_category,
                         'Safety_Stock_Months': safety_stock_months,
@@ -1887,12 +1900,12 @@ class EnhancedForecastingModel:
                         'Last_3_Months_Avg': last_3_months_avg,
                         'Total_Sales': total_sales,
                         'Growth_Rate': growth_rate if not pd.isna(growth_rate) else 0.0,
-                        'Order_2_Date': order_dates[1],
-                        'Order_2_Qty': order_qtys[1],
-                        'Order_2_Arrival': arrival_dates[1],
-                        'Order_3_Date': order_dates[2],
-                        'Order_3_Qty': order_qtys[2],
-                        'Order_3_Arrival': arrival_dates[2],
+                        'Order_2_Date': order_dates[1] if len(order_dates) > 1 else pd.Timestamp.now() + pd.DateOffset(days=60),
+                        'Order_2_Qty': order_qtys[1] if len(order_qtys) > 1 else 0,
+                        'Order_2_Arrival': arrival_dates[1] if len(arrival_dates) > 1 else pd.Timestamp.now() + pd.DateOffset(days=75),
+                        'Order_3_Date': order_dates[2] if len(order_dates) > 2 else pd.Timestamp.now() + pd.DateOffset(days=90),
+                        'Order_3_Qty': order_qtys[2] if len(order_qtys) > 2 else 0,
+                        'Order_3_Arrival': arrival_dates[2] if len(arrival_dates) > 2 else pd.Timestamp.now() + pd.DateOffset(days=105),
                         'Lead_Time': lead_time,
                         'Service_Level': f"{sku_info.get('service_level', 0.85)*100:.0f}%",
                         'Monthly_Velocity': round(sku_info.get('monthly_velocity', 0), 1) if not pd.isna(sku_info.get('monthly_velocity', 0)) else 0.0,
@@ -2502,9 +2515,9 @@ class EnhancedForecastingModel:
                         'Stock_Status': stock_status,
                         'PO_Urgency': urgency,
                         'Recommended_PO_Qty': po_quantity,
-                        'Next_Order_Date': order_dates[0],
-                        'Next_Order_Qty': order_qtys[0],
-                        'Next_Arrival_Date': arrival_dates[0],
+                        'Next_Order_Date': order_dates[0] if order_dates else pd.Timestamp.now() + pd.DateOffset(days=30),
+                        'Next_Order_Qty': order_qtys[0] if order_qtys else 0,
+                        'Next_Arrival_Date': arrival_dates[0] if arrival_dates else pd.Timestamp.now() + pd.DateOffset(days=45),
                         'Months_of_Inventory': months_of_inventory,
                         'Velocity_Category': velocity_category,
                         'Safety_Stock_Months': safety_stock_months,
@@ -2521,12 +2534,12 @@ class EnhancedForecastingModel:
                         'Last_3_Months_Avg': last_3_months_avg,
                         'Total_Sales': total_sales,
                         'Growth_Rate': growth_rate if not pd.isna(growth_rate) else 0.0,
-                        'Order_2_Date': order_dates[1],
-                        'Order_2_Qty': order_qtys[1],
-                        'Order_2_Arrival': arrival_dates[1],
-                        'Order_3_Date': order_dates[2],
-                        'Order_3_Qty': order_qtys[2],
-                        'Order_3_Arrival': arrival_dates[2],
+                        'Order_2_Date': order_dates[1] if len(order_dates) > 1 else pd.Timestamp.now() + pd.DateOffset(days=60),
+                        'Order_2_Qty': order_qtys[1] if len(order_qtys) > 1 else 0,
+                        'Order_2_Arrival': arrival_dates[1] if len(arrival_dates) > 1 else pd.Timestamp.now() + pd.DateOffset(days=75),
+                        'Order_3_Date': order_dates[2] if len(order_dates) > 2 else pd.Timestamp.now() + pd.DateOffset(days=90),
+                        'Order_3_Qty': order_qtys[2] if len(order_qtys) > 2 else 0,
+                        'Order_3_Arrival': arrival_dates[2] if len(arrival_dates) > 2 else pd.Timestamp.now() + pd.DateOffset(days=105),
                         'Lead_Time': lead_time,
                         'Service_Level': f"{sku_info.get('service_level', 0.85)*100:.0f}%",
                         'Monthly_Velocity': round(sku_info.get('monthly_velocity', 0), 1) if not pd.isna(sku_info.get('monthly_velocity', 0)) else 0.0,
@@ -2692,9 +2705,9 @@ class EnhancedForecastingModel:
                             'Stock_Status': stock_status,
                             'PO_Urgency': urgency,
                             'Recommended_PO_Qty': po_quantity,
-                            'Next_Order_Date': order_dates[0],
-                            'Next_Order_Qty': order_qtys[0],
-                            'Next_Arrival_Date': arrival_dates[0],
+                            'Next_Order_Date': order_dates[0] if order_dates else pd.Timestamp.now() + pd.DateOffset(days=30),
+                            'Next_Order_Qty': order_qtys[0] if order_qtys else 0,
+                            'Next_Arrival_Date': arrival_dates[0] if arrival_dates else pd.Timestamp.now() + pd.DateOffset(days=45),
                             'Months_of_Inventory': months_of_inventory,
                             'Velocity_Category': velocity_category,
                             'Safety_Stock_Months': safety_stock_months,
@@ -2711,12 +2724,12 @@ class EnhancedForecastingModel:
                             'Last_3_Months_Avg': last_3_months_avg,
                             'Total_Sales': total_sales,
                             'Growth_Rate': growth_rate if not pd.isna(growth_rate) else 0.0,
-                            'Order_2_Date': order_dates[1],
-                            'Order_2_Qty': order_qtys[1],
-                            'Order_2_Arrival': arrival_dates[1],
-                            'Order_3_Date': order_dates[2],
-                            'Order_3_Qty': order_qtys[2],
-                            'Order_3_Arrival': arrival_dates[2],
+                            'Order_2_Date': order_dates[1] if len(order_dates) > 1 else pd.Timestamp.now() + pd.DateOffset(days=60),
+                            'Order_2_Qty': order_qtys[1] if len(order_qtys) > 1 else 0,
+                            'Order_2_Arrival': arrival_dates[1] if len(arrival_dates) > 1 else pd.Timestamp.now() + pd.DateOffset(days=75),
+                            'Order_3_Date': order_dates[2] if len(order_dates) > 2 else pd.Timestamp.now() + pd.DateOffset(days=90),
+                            'Order_3_Qty': order_qtys[2] if len(order_qtys) > 2 else 0,
+                            'Order_3_Arrival': arrival_dates[2] if len(arrival_dates) > 2 else pd.Timestamp.now() + pd.DateOffset(days=105),
                             'Lead_Time': lead_time,
                             'Service_Level': f"{sku_info.get('service_level', 0.85)*100:.0f}%",
                             'Monthly_Velocity': round(sku_info.get('monthly_velocity', 0), 1) if not pd.isna(sku_info.get('monthly_velocity', 0)) else 0.0,
@@ -2970,9 +2983,9 @@ class EnhancedForecastingModel:
                             'Stock_Status': stock_status,
                             'PO_Urgency': urgency,
                             'Recommended_PO_Qty': po_quantity,
-                            'Next_Order_Date': order_dates[0],
-                            'Next_Order_Qty': order_qtys[0],
-                            'Next_Arrival_Date': arrival_dates[0],
+                            'Next_Order_Date': order_dates[0] if order_dates else pd.Timestamp.now() + pd.DateOffset(days=30),
+                            'Next_Order_Qty': order_qtys[0] if order_qtys else 0,
+                            'Next_Arrival_Date': arrival_dates[0] if arrival_dates else pd.Timestamp.now() + pd.DateOffset(days=45),
                             'Months_of_Inventory': months_of_inventory,
                             'Velocity_Category': velocity_category,
                             'Safety_Stock_Months': safety_stock_months,
@@ -2989,12 +3002,12 @@ class EnhancedForecastingModel:
                             'Last_3_Months_Avg': last_3_months_avg,
                             'Total_Sales': total_sales,
                             'Growth_Rate': growth_rate if not pd.isna(growth_rate) else 0.0,
-                            'Order_2_Date': order_dates[1],
-                            'Order_2_Qty': order_qtys[1],
-                            'Order_2_Arrival': arrival_dates[1],
-                            'Order_3_Date': order_dates[2],
-                            'Order_3_Qty': order_qtys[2],
-                            'Order_3_Arrival': arrival_dates[2],
+                            'Order_2_Date': order_dates[1] if len(order_dates) > 1 else pd.Timestamp.now() + pd.DateOffset(days=60),
+                            'Order_2_Qty': order_qtys[1] if len(order_qtys) > 1 else 0,
+                            'Order_2_Arrival': arrival_dates[1] if len(arrival_dates) > 1 else pd.Timestamp.now() + pd.DateOffset(days=75),
+                            'Order_3_Date': order_dates[2] if len(order_dates) > 2 else pd.Timestamp.now() + pd.DateOffset(days=90),
+                            'Order_3_Qty': order_qtys[2] if len(order_qtys) > 2 else 0,
+                            'Order_3_Arrival': arrival_dates[2] if len(arrival_dates) > 2 else pd.Timestamp.now() + pd.DateOffset(days=105),
                             'Lead_Time': lead_time,
                             'Service_Level': f"{sku_info.get('service_level', 0.85)*100:.0f}%",
                             'Monthly_Velocity': round(sku_info.get('monthly_velocity', 0), 1) if not pd.isna(sku_info.get('monthly_velocity', 0)) else 0.0,
@@ -3160,9 +3173,9 @@ class EnhancedForecastingModel:
                             'Stock_Status': stock_status,
                             'PO_Urgency': urgency,
                             'Recommended_PO_Qty': po_quantity,
-                            'Next_Order_Date': order_dates[0],
-                            'Next_Order_Qty': order_qtys[0],
-                            'Next_Arrival_Date': arrival_dates[0],
+                            'Next_Order_Date': order_dates[0] if order_dates else pd.Timestamp.now() + pd.DateOffset(days=30),
+                            'Next_Order_Qty': order_qtys[0] if order_qtys else 0,
+                            'Next_Arrival_Date': arrival_dates[0] if arrival_dates else pd.Timestamp.now() + pd.DateOffset(days=45),
                             'Months_of_Inventory': months_of_inventory,
                             'Velocity_Category': velocity_category,
                             'Safety_Stock_Months': safety_stock_months,
@@ -3179,12 +3192,12 @@ class EnhancedForecastingModel:
                             'Last_3_Months_Avg': last_3_months_avg,
                             'Total_Sales': total_sales,
                             'Growth_Rate': growth_rate if not pd.isna(growth_rate) else 0.0,
-                            'Order_2_Date': order_dates[1],
-                            'Order_2_Qty': order_qtys[1],
-                            'Order_2_Arrival': arrival_dates[1],
-                            'Order_3_Date': order_dates[2],
-                            'Order_3_Qty': order_qtys[2],
-                            'Order_3_Arrival': arrival_dates[2],
+                            'Order_2_Date': order_dates[1] if len(order_dates) > 1 else pd.Timestamp.now() + pd.DateOffset(days=60),
+                            'Order_2_Qty': order_qtys[1] if len(order_qtys) > 1 else 0,
+                            'Order_2_Arrival': arrival_dates[1] if len(arrival_dates) > 1 else pd.Timestamp.now() + pd.DateOffset(days=75),
+                            'Order_3_Date': order_dates[2] if len(order_dates) > 2 else pd.Timestamp.now() + pd.DateOffset(days=90),
+                            'Order_3_Qty': order_qtys[2] if len(order_qtys) > 2 else 0,
+                            'Order_3_Arrival': arrival_dates[2] if len(arrival_dates) > 2 else pd.Timestamp.now() + pd.DateOffset(days=105),
                             'Lead_Time': lead_time,
                             'Service_Level': f"{sku_info.get('service_level', 0.85)*100:.0f}%",
                             'Monthly_Velocity': round(sku_info.get('monthly_velocity', 0), 1) if not pd.isna(sku_info.get('monthly_velocity', 0)) else 0.0,
@@ -3299,25 +3312,26 @@ def upload_to_google_drive_from_buffer(buffer):
     FOLDER_ID = '0ANRBYKNxrAXaUk9PVA'
     FIXED_FILENAME = "Forecasting Excel Workbook Format.xlsx"
 
-    # Handle service account credentials
-    local_drive_key = os.path.join(BASE_DIR, "GoogleDriveAPIKey.json")
-
-    if os.path.exists(local_drive_key):
-        SERVICE_ACCOUNT_FILE = local_drive_key
-        print(f"✅ Using local Google Drive credentials: {SERVICE_ACCOUNT_FILE}")
-    elif "gcp_service_account_drive" in os.environ:
-        creds_dict = json.loads(os.environ["gcp_service_account_drive"])
-        with open("temp_service_account.json", "w") as f:
-            json.dump(dict(creds_dict), f)
-        SERVICE_ACCOUNT_FILE = "temp_service_account.json"
-        print("✅ Using Google Drive credentials from Streamlit secrets")
-    else:
-        raise FileNotFoundError(
-            "❌ No local Google Drive credentials or Streamlit secrets found."
-        )
-
+    # Handle service account credentials - GCP only
+    if "gcp_service_account_drive" not in os.environ:
+        raise FileNotFoundError("❌ No Google Drive service account credentials found in environment variables.")
+    
+    print("🔄 Using Google Drive credentials from environment...")
+    
+    # Load credentials from environment
+    creds_dict = json.loads(os.environ["gcp_service_account_drive"])
+    
+    # Write to temporary file (required for from_service_account_file)
+    SERVICE_ACCOUNT_FILE = "temp_service_account.json"
+    with open(SERVICE_ACCOUNT_FILE, "w") as f:
+        json.dump(creds_dict, f)
+    
+    print("✅ Google Drive credentials loaded and saved to temp file.")
+    
+    # Initialize credentials and service
     credentials = service_account.Credentials.from_service_account_file(
-        SERVICE_ACCOUNT_FILE, scopes=SCOPES)
+        SERVICE_ACCOUNT_FILE, scopes=SCOPES
+    )
     drive_service = build('drive', 'v3', credentials=credentials)
 
     # Check if file with same name already exists
@@ -3371,7 +3385,8 @@ def upload_to_google_drive_from_buffer(buffer):
 
          
 def main():
-    try:
+
+    try:               
         print("ENHANCED INVENTORY FORECASTING MODEL - COMPREHENSIVE VERSION")
         print("=" * 60)
 
@@ -3379,7 +3394,6 @@ def main():
         WEEKLY_SALES_URL = "https://docs.google.com/spreadsheets/d/16WVvbzcdzeeI4ZL4OFou_7DVM7UAHWUvXmpYiHzOUw0/edit?gid=1908752665#gid=1908752665"
         INVENTORY_URL = "https://docs.google.com/spreadsheets/d/1_j7eJi52Kq8RHvK6e0RPBRK8wJ0DXUOMj7Z7yZHlZzM/edit?gid=404505721#gid=404505721"
         USE_GOOGLE_SHEETS = True
-
 
         print("Loading data files...")
 
@@ -3396,52 +3410,34 @@ def main():
         
         if USE_GOOGLE_SHEETS and GOOGLE_SHEETS_AVAILABLE:
             try:
-                print(f"Current working directory: {os.getcwd()}")
-                print("Looking for credentials file...")
-
-                print(f"BASE_DIR: {BASE_DIR}")
-
-                # Define credential paths FIRST
-                credential_paths = [
-                    os.path.join(BASE_DIR, "credentials.json"),
-                    os.path.join(BASE_DIR, "service-account-key.json"),
-                    os.path.join(BASE_DIR, "config", "credentials.json"),
-                    os.path.join(BASE_DIR, "config", "service-account-key.json"),
-                ]
-
-                print("Checking paths:")
-                for p in credential_paths:
-                    print(" -", p, "| Exists:", os.path.exists(p))
-
-                credentials_file = None
-                for path in credential_paths:
-                    if os.path.exists(path):
-                        credentials_file = path
-                        print(f"✅ Found local credentials file: {path}")
-                        break
-
-                # If no local file, try Streamlit Cloud secrets
-                if not credentials_file and "gcp_service_account_sheets" in os.environ:
-                    try:
-                        creds_dict = json.loads(os.environ["gcp_service_account_sheets"])
-                        with open("temp_credentials.json", "w") as f:
-                            json.dump(creds_dict, f)
-                        credentials_file = "temp_credentials.json"
-                        print("✅ Loaded credentials from Render environment variable")
-                    except Exception as e:
-                        print("❌ Failed to parse credentials from environment variable:", e)
-
-                # If still nothing, fall back to CSV
-                if not credentials_file:
-                    print("❌ No credentials file found locally or in secrets. Falling back to CSV...")
-                    raise FileNotFoundError("No credentials file found")
-
-                # Create Google Sheets connector
+                print("🔄 Using GCP credentials from environment...")
+                
+                # Ensure env var is present
+                if "gcp_service_account_sheets" not in os.environ:
+                    raise FileNotFoundError("❌ No GCP service account credentials found in environment variables.")
+        
+                # ✅ Debug: Check what we actually got from env
+                try:
+                    raw_secret = os.environ["gcp_service_account_sheets"]
+                    print(f"🔍 Secret length: {len(raw_secret)} characters")
+                    creds_dict = json.loads(raw_secret)
+                    print(f"✅ Loaded service account for: {creds_dict.get('client_email', 'UNKNOWN EMAIL')}")
+                except Exception as e:
+                    print("❌ Failed to parse service account secret")
+                    import traceback
+                    traceback.print_exc()
+                    raise
+                
+                # Save to temp file
+                credentials_file = "temp_credentials.json"
+                with open(credentials_file, "w") as f:
+                    json.dump(creds_dict, f)
+                print("✅ Credentials saved to temp file.")
+        
+                # Create connector
                 gs_connector = GoogleSheetsConnector(credentials_file)
-
-
-
-                # Get inventory data from Google Sheets
+        
+                # Now try getting inventory
                 print(f"\n📦 Loading inventory data from Google Sheets...")
                 inventory = gs_connector.get_inventory_data(INVENTORY_URL)
                 print(f"   Current inventory from Google Sheets: {len(inventory)} SKUs")
@@ -3478,7 +3474,6 @@ def main():
                     print("⚠️ No Shopify Main weekly sales data found")
 
                 ### Shopify Faire    
-
                 print(f"\nLoading Shopify Faire weekly sales data...")
                 shopify_faire_weekly_df = gs_connector.get_shopify_faire_weekly_sales(WEEKLY_SALES_URL)
 
@@ -3549,6 +3544,7 @@ def main():
         else:
             USE_GOOGLE_SHEETS = False
 
+
         if not USE_GOOGLE_SHEETS:
             # Fall back to CSV for inventory
             inventory_path = os.path.join(BASE_DIR, "current_inventory.csv")
@@ -3586,6 +3582,7 @@ def main():
 
         print("Creating combined channel analysis...")
         combined_forecast = model.combine_channel_forecasts(amazon_forecast, shopify_forecast, shopify_faire_forecast, amazon_fbm_forecast, walmart_fbm_forecast)
+
 
         # Generate actionable insights
         print("Generating actionable insights...")
@@ -4971,7 +4968,7 @@ with header_col2:
 # --- Session state setup ---
 if "excel_buffer" not in st.session_state:
     st.session_state.excel_buffer = None
-    st.session_state.filename = None
+   # st.session_state.filename = None
     st.session_state.drive_file_id = None
     st.session_state.file_downloaded = False
 
@@ -5012,44 +5009,100 @@ with button_container:
                     "✨ Generating Intelligence Reports...",
                 ]
 
-                # Holder for main() results
-                results = {}
+                # Progress simulation before running main()
+                for i in range(40):  # Half the bar before main() runs
+                    stage_index = i // 6
+                    if stage_index < len(neural_stages):
+                        status_text.markdown(
+                            f'<p class="status-text">{neural_stages[stage_index]}</p>',
+                            unsafe_allow_html=True
+                        )
+                    time.sleep(0.05)
+                    progress_bar.progress(i + 1)
 
-                # Start main() in a separate thread
-                thread = threading.Thread(
-                    target=lambda: results.update(
-                        zip(("excel_buffer", "filename", "drive_file_id"), main())
-                    )
-                )
-                thread.start()
-
-                # Progress simulation while main() runs
-                for i in range(100):
+                # Replace your current Streamlit button handler with this enhanced version:
+                
+                try:
+                    # Add detailed logging before calling main()
+                    st.info("🔄 Starting forecast analysis...")
+                    
+                    # Call main() with better error capture
+                    result = main()
+                    
+                    # Debug the result
+                    st.write(f"Debug - main() returned: {type(result)}")
+                    if isinstance(result, tuple):
+                        st.write(f"Debug - tuple length: {len(result)}")
+                        st.write(f"Debug - values: {[type(x).__name__ for x in result]}")
+                    
+                    # Check for None returns (error cases)
+                    if result is None or (isinstance(result, tuple) and result[0] is None):
+                        st.error("❌ Forecast Analysis Failed. main() returned None - check the detailed logs below.")
+                        
+                        # Try to get more details from the logs
+                        st.subheader("🔍 Debugging Information")
+                        st.write("The main() function returned None, indicating an error occurred.")
+                        st.write("Common causes:")
+                        st.write("- File not found (CSV files missing)")
+                        st.write("- Google Sheets credentials issue")
+                        st.write("- Memory or timeout limits exceeded")
+                        st.write("- Network connectivity issues")
+                        
+                        st.stop()
+                    
+                    # Unpack the result
+                    if isinstance(result, tuple) and len(result) == 2:
+                        excel_buffer, drive_file_id = result
+                    else:
+                        st.error(f"❌ main() returned unexpected format: {result}")
+                        st.stop()
+                        
+                except Exception as e:
+                    import traceback
+                    error_traceback = traceback.format_exc()
+                    
+                    st.error(f"❌ Forecast Analysis crashed: {type(e).__name__} - {str(e)}")
+                    
+                    # Show detailed error information
+                    st.subheader("🔍 Detailed Error Information")
+                    st.code(error_traceback)
+                    
+                    # Show system information that might help debug
+                    st.subheader("💻 System Information")
+                    try:
+                        import os, sys
+                        st.write(f"Python version: {sys.version}")
+                        st.write(f"Working directory: {os.getcwd()}")
+                        st.write(f"Environment variables:")
+                        for key in ['GOOGLE_SHEETS_CREDENTIALS', 'gcp_service_account_sheets']:
+                            if key in os.environ:
+                                st.write(f"  {key}: {'SET' if os.environ[key] else 'EMPTY'}")
+                            else:
+                                st.write(f"  {key}: NOT SET")
+                    except Exception as sys_e:
+                        st.write(f"Could not get system info: {sys_e}")
+                    
+                    st.stop()
+                # Finish progress bar
+                for i in range(40, 100):
                     stage_index = i // 14
                     if stage_index < len(neural_stages):
                         status_text.markdown(
                             f'<p class="status-text">{neural_stages[stage_index]}</p>',
                             unsafe_allow_html=True
                         )
-                    time.sleep(0.5)
+                    time.sleep(0.02)
                     progress_bar.progress(i + 1)
-
-                    # If main() finishes early, break out
-                    if not thread.is_alive():
-                        break
-
-                # Ensure main() has finished
-                thread.join()
 
                 # Clear progress UI
                 progress_bar.empty()
                 status_text.empty()
 
                 # Show results
-                if results.get("excel_buffer"):
-                    st.session_state.excel_buffer = results["excel_buffer"]
-                    st.session_state.filename = results["filename"]
-                    st.session_state.drive_file_id = results["drive_file_id"]
+                if excel_buffer:
+                    st.session_state.excel_buffer = excel_buffer
+                    st.session_state.filename = filename
+                    st.session_state.drive_file_id = drive_file_id
 
                     end_time = time.time()
                     duration_sec = end_time - start_time
@@ -5060,10 +5113,14 @@ with button_container:
                         st.success(
                             f"✅ FORECAST ANALYSIS COMPLETED | REPORTS READY!\n\n"
                             f"📅 Generated at: **{timestamp_str}**\n"
-                            f"⏱ Duration taken for analysis: **{duration_str}**")
+                            f"⏱ Duration taken for analysis: **{duration_str}**"
+                        )
                 else:
                     with result_container:
                         st.error("❌ Forecast Analysis Failed. Please try again.")
+
+
+
 
 # --- Neural Access Portal ---
 if st.session_state.excel_buffer:
@@ -5090,6 +5147,7 @@ if st.session_state.excel_buffer:
             help="Download forecast intelligence in Excel format"
         ):
             pass
+
 
     with col2:
         if st.session_state.drive_file_id:
@@ -5122,15 +5180,39 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --- Footer ---
+# --- Footer ---
 st.markdown("""
     <div style="text-align: center; padding: 3rem 0 2rem 0; margin-top: 3rem; border-top: 1px solid rgba(64, 224, 208, 0.2);">
         <p style="color: rgba(64, 224, 208, 0.8); font-family: 'JetBrains Mono', monospace; font-size: 0.9rem; margin: 0;">
-            HERBAL GOODNESS © 2025 | POWERED BY AMW CONSULTANCY | VERSION 4.0.1
+            HERBAL GOODNESS © 2025 | POWERED BY SCMplify CONSULTANCY | VERSION 4.0.1
         </p>
         <p style="color: rgba(255, 255, 255, 0.4); font-family: 'Space Grotesk', sans-serif; font-size: 0.8rem; margin: 0.5rem 0 0 0;">
             Revolutionizing inventory management through intelligent forecasting
         </p>
     </div>
-""", unsafe_allow_html=True)
+""", unsafe_allow_html=True)  # <-- closing triple quotes AND parenthesis
 
 st.markdown('</div>', unsafe_allow_html=True)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

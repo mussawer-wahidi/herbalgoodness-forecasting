@@ -3312,22 +3312,16 @@ def upload_to_google_drive_from_buffer(buffer):
     FOLDER_ID = '0ANRBYKNxrAXaUk9PVA'
     FIXED_FILENAME = "Forecasting Excel Workbook Format.xlsx"
 
-    # Handle service account credentials - GCP only
-    if "gcp_service_account_drive" not in os.environ:
-        raise FileNotFoundError("❌ No Google Drive service account credentials found in environment variables.")
+    # Handle service account credentials for Google Drive
+    if "gcp_service_account_drive" not in st.secrets:
+        raise FileNotFoundError("❌ No Google Drive service account credentials found in st.secrets.")
     
-    print("🔄 Using Google Drive credentials from environment...")
+    print("🔄 Using Google Drive credentials from st.secrets...")
     
-    # Load credentials from environment
-    creds_dict = json.loads(os.environ["gcp_service_account_drive"])
-    
-    # Write to temporary file (required for from_service_account_file)
-    SERVICE_ACCOUNT_FILE = "temp_service_account.json"
-    with open(SERVICE_ACCOUNT_FILE, "w") as f:
-        json.dump(creds_dict, f)
-    
-    print("✅ Google Drive credentials loaded and saved to temp file.")
-    
+    # Load credentials directly from Streamlit secrets
+    creds_dict = dict(st.secrets["gcp_service_account_drive"])
+
+
     # Initialize credentials and service
     credentials = service_account.Credentials.from_service_account_file(
         SERVICE_ACCOUNT_FILE, scopes=SCOPES
@@ -3412,28 +3406,22 @@ def main():
             try:
                 print("🔄 Using GCP credentials from environment...")
                 
-                # Ensure env var is present
-                if "gcp_service_account_sheets" not in os.environ:
-                    raise FileNotFoundError("❌ No GCP service account credentials found in environment variables.")
-        
-                # ✅ Debug: Check what we actually got from env
-                try:
-                    raw_secret = os.environ["gcp_service_account_sheets"]
-                    print(f"🔍 Secret length: {len(raw_secret)} characters")
-                    creds_dict = json.loads(raw_secret)
-                    print(f"✅ Loaded service account for: {creds_dict.get('client_email', 'UNKNOWN EMAIL')}")
-                except Exception as e:
-                    print("❌ Failed to parse service account secret")
-                    import traceback
-                    traceback.print_exc()
-                    raise
-                
-                # Save to temp file
+                # ✅ Ensure secret is present
+                if "gcp_service_account_sheets" not in st.secrets:
+                    raise FileNotFoundError("❌ No GCP service account credentials found in Streamlit secrets.")
+            
+                # ✅ Debug: check secret length and email
+                raw_secret = st.secrets["gcp_service_account_sheets"]
+                creds_dict = dict(raw_secret)  # Convert to regular dict
+                print(f"🔍 Secret keys: {list(creds_dict.keys())}")
+                print(f"✅ Loaded service account for: {creds_dict.get('client_email', 'UNKNOWN EMAIL')}")
+            
+                # Save to temp file for client libraries that need a file path
                 credentials_file = "temp_credentials.json"
                 with open(credentials_file, "w") as f:
                     json.dump(creds_dict, f)
                 print("✅ Credentials saved to temp file.")
-        
+
                 # Create connector
                 gs_connector = GoogleSheetsConnector(credentials_file)
         
@@ -5193,6 +5181,7 @@ st.markdown("""
 """, unsafe_allow_html=True)  # <-- closing triple quotes AND parenthesis
 
 st.markdown('</div>', unsafe_allow_html=True)
+
 
 
 

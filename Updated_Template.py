@@ -3244,14 +3244,49 @@ def upload_excel_to_google_sheet(excel_buffer, sheet_id=None):
     import numpy as np
     import gspread
     import time
+    import os
+    import json
     from google.oauth2.service_account import Credentials
 
+    print("🔄 Using GCP credentials from environment...")
+    
+    # Ensure env var is present
+    if "gcp_service_account_sheets" not in os.environ:
+        raise FileNotFoundError("❌ No GCP service account credentials found in environment variables.")
+
+    # ✅ Debug: Check what we actually got from env
+    try:
+        raw_secret = os.environ["gcp_service_account_sheets"]
+        print(f"🔍 Secret length: {len(raw_secret)} characters")
+        creds_dict = json.loads(raw_secret)
+        print(f"✅ Loaded service account for: {creds_dict.get('client_email', 'UNKNOWN EMAIL')}")
+    except Exception as e:
+        print("❌ Failed to parse service account secret")
+        import traceback
+        traceback.print_exc()
+        raise
+    
+    # Save to temp file (exactly like your working function)
+    credentials_file = "temp_credentials.json"
+    with open(credentials_file, "w") as f:
+        json.dump(creds_dict, f)
+    print("✅ Credentials saved to temp file.")
+
+    # Create credentials from temp file
     scopes = ['https://www.googleapis.com/auth/spreadsheets']
-    credentials = Credentials.from_service_account_file("credentials.json", scopes=scopes)
+    credentials = Credentials.from_service_account_file(credentials_file, scopes=scopes)
     gc = gspread.authorize(credentials)
 
+    # Clean up temp file
+    try:
+        os.remove(credentials_file)
+        print("🧹 Cleaned up temp credentials file.")
+    except:
+        pass
+
     # ✅ Set your fixed Google Sheet ID here
-    sheet_id = "1051NJelrnQGKwKDXWmaMiU1-fBgm4ZSd4s_G2-hJIcE"
+    if sheet_id is None:
+        sheet_id = "1051NJelrnQGKwKDXWmaMiU1-fBgm4ZSd4s_G2-hJIcE"
 
     try:
         sheet = gc.open_by_key(sheet_id)
@@ -3295,7 +3330,7 @@ def upload_excel_to_google_sheet(excel_buffer, sheet_id=None):
         import traceback
         traceback.print_exc()
         return None
- 
+     
 def upload_to_google_drive_from_buffer(buffer):
     # BASE_DIR = os.path.dirname(__file__)
     # SERVICE_ACCOUNT_FILE = os.path.join(BASE_DIR, "GoogleDriveAPIKey.json")
@@ -4456,7 +4491,7 @@ def main():
         excel_buffer.seek(0)
 
         # Upload to Google Sheets before returning
-        # upload_excel_to_google_sheet(excel_buffer)
+        upload_excel_to_google_sheet(excel_buffer)
 
         # Upload to Google Drive (NEW)
         drive_file_id = upload_to_google_drive_from_buffer(excel_buffer)
@@ -5112,8 +5147,6 @@ with button_container:
                         st.error("❌ Forecast Analysis Failed. Please try again.")
 
 
-
-
 # --- Neural Access Portal ---
 if st.session_state.excel_buffer:
     st.markdown("""
@@ -5185,6 +5218,7 @@ st.markdown("""
 """, unsafe_allow_html=True)  # <-- closing triple quotes AND parenthesis
 
 st.markdown('</div>', unsafe_allow_html=True)
+
 
 
 

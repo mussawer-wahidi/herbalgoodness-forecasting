@@ -5056,43 +5056,21 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- Main Content Container ---
-st.markdown('<div class="main-content">', unsafe_allow_html=True)
+import threading
+import queue
+import time
+from datetime import datetime
 
-# --- Futuristic Header with Logo ---
-header_col1, header_col2 = st.columns([1, 5])
-
-with header_col1:
-    # Logo section - replace the path with your actual logo file
-    try:
-
-        #BASE_DIR = os.path.dirname(__file__)
-        logo_path = os.path.join(BASE_DIR, "logo", "herbal-logo.avif")
-        st.image(logo_path, width=200)
-
-    except:
-        st.markdown("""
-            <div style="width: 80px; height: 80px; background: linear-gradient(135deg, #40e0d0, #87ceeb); 
-                        border-radius: 20px; display: flex; align-items: center; justify-content: center; 
-                        font-size: 2.5rem; box-shadow: 0 8px 32px rgba(64, 224, 208, 0.3);">
-                🌿
-            </div>
-        """, unsafe_allow_html=True)
-
-with header_col2:
-    st.markdown("""
-        <div style="padding-left: 2rem;">
-            <h1 class="company-name">HERBAL GOODNESS</h1>
-            <p class="tagline">// INVENTORY INTELLIGENCE SYSTEM //</p>
-        </div>
-    """, unsafe_allow_html=True)
+# Add this at the top of your Streamlit UI section, after the session state setup:
 
 # --- Session state setup ---
 if "excel_buffer" not in st.session_state:
     st.session_state.excel_buffer = None
-   # st.session_state.filename = None
     st.session_state.drive_file_id = None
     st.session_state.file_downloaded = False
+    st.session_state.processing = False
+    st.session_state.result_queue = queue.Queue()
+    st.session_state.error_queue = queue.Queue()
 
 # --- AI Forecast Engine Section ---
 st.markdown("""
@@ -5111,58 +5089,150 @@ button_container = st.container()
 progress_container = st.container()
 result_container = st.container()
 
+def run_main_function(result_queue, error_queue):
+    """Thread function to run main() in background"""
+    try:
+        result = main()
+        result_queue.put(result)
+    except Exception as e:
+        import traceback
+        error_info = {
+            'exception': e,
+            'traceback': traceback.format_exc()
+        }
+        error_queue.put(error_info)
+
 with button_container:
-    if st.button("🚀 INITIATE FORECASTING ANALYSIS", key="generate_btn"):
-
-        start_time = time.time()  # Track when button was clicked
-
+    if st.button("🚀 INITIATE FORECASTING ANALYSIS", key="generate_btn", disabled=st.session_state.processing):
+        
+        # Set processing state
+        st.session_state.processing = True
+        start_time = time.time()
+        
+        # Clear previous queues
+        while not st.session_state.result_queue.empty():
+            st.session_state.result_queue.get()
+        while not st.session_state.error_queue.empty():
+            st.session_state.error_queue.get()
+        
+        # Start main() function in background thread immediately
+        st.info("🔄 Starting forecast analysis...")
+        processing_thread = threading.Thread(
+            target=run_main_function,
+            args=(st.session_state.result_queue, st.session_state.error_queue)
+        )
+        processing_thread.daemon = True
+        processing_thread.start()
+        
         with progress_container:
-            with st.spinner("⚡ Generating Forecast Analysis..."):
-                progress_bar = st.progress(0)
-                status_text = st.empty()
-
-                neural_stages = [
-                    "⚡ Initializing Data Collection...",
-                    "🧠 Sourcing Google Sheets Data...",
-                    "📊 Mapping the SKUs...",
-                    "🔍 Moving to The Forecast Algorithms...",
-                    "⚙️ Optimizing Prediction Algorithms...",
-                    "🌐 Synchronizing Multi-Channel Data...",
-                    "✨ Generating Intelligence Reports...",
-                ]
-
-                # Progress simulation before running main()
-                for i in range(40):  # Half the bar before main() runs
-                    stage_index = i // 6
-                    if stage_index < len(neural_stages):
-                        status_text.markdown(
-                            f'<p class="status-text">{neural_stages[stage_index]}</p>',
-                            unsafe_allow_html=True
-                        )
-                    time.sleep(0.05)
-                    progress_bar.progress(i + 1)
-
-                # Replace your current Streamlit button handler with this enhanced version:
+            progress_bar = st.progress(0)
+            status_text = st.empty()
+            
+            neural_stages = [
+                "⚡ Initializing Data Collection...",
+                "🧠 Sourcing Google Sheets Data...",
+                "📊 Mapping the SKUs...",
+                "🔍 Moving to The Forecast Algorithms...",
+                "⚙️ Optimizing Prediction Algorithms...",
+                "🌐 Synchronizing Multi-Channel Data...",
+                "✨ Generating Intelligence Reports...",
+            ]
+            
+            # Progress animation while main() runs in background
+            progress = 0
+            max_progress = 95  # Don't go to 100% until we have results
+            
+            while progress < max_progress:
+                # Check if main() is done
+                if not st.session_state.result_queue.empty() or not st.session_state.error_queue.empty():
+                    break
                 
-                try:
-                    # Add detailed logging before calling main()
-                    st.info("🔄 Starting forecast analysis...")
+                # Update progress bar
+                stage_index = progress // 14
+                if stage_index < len(neural_stages):
+                    status_text.markdown(
+                        f'<p class="status-text">{neural_stages[stage_index]}</p>',
+                        unsafe_allow_html=True
+                    )
+                
+                progress_bar.progress(progress + 1)
+                progress += 1
+                time.sleep(0.1)  # Adjust speed as needed
+            
+            # Check for results or errors
+            result = None
+            error_info = None
+            
+            # Wait a bit more if still processing
+            max_wait_time = 60  # Maximum 60 seconds additional wait
+            wait_start = time.time()
+            
+            while (st.session_state.result_queue.empty() and 
+                   st.session_state.error_queue.empty() and 
+                   (time.time() - wait_start) < max_wait_time):
+                status_text.markdown(
+                    f'<p class="status-text">🔄 Finalizing analysis...</p>',
+                    unsafe_allow_html=True
+                )
+                progress_bar.progress(min(progress + 1, 99))
+                time.sleep(0.5)
+            
+            # Get the result
+            if not st.session_state.result_queue.empty():
+                result = st.session_state.result_queue.get()
+            elif not st.session_state.error_queue.empty():
+                error_info = st.session_state.error_queue.get()
+            else:
+                # Timeout case
+                error_info = {
+                    'exception': TimeoutError("Analysis timed out after 60 seconds"),
+                    'traceback': "No traceback - timeout occurred"
+                }
+            
+            # Complete progress bar
+            for i in range(progress, 100):
+                progress_bar.progress(i + 1)
+                time.sleep(0.01)
+            
+            # Clear progress UI
+            progress_bar.empty()
+            status_text.empty()
+            
+            # Reset processing state
+            st.session_state.processing = False
+            
+            # Handle results or errors
+            if error_info:
+                e = error_info['exception']
+                error_traceback = error_info['traceback']
+                
+                with result_container:
+                    st.error(f"❌ Forecast Analysis crashed: {type(e).__name__} - {str(e)}")
                     
-                    # Call main() with better error capture
-                    result = main()
-                    
-                    # Debug the result
-                    st.write(f"Debug - main() returned: {type(result)}")
-                    if isinstance(result, tuple):
-                        st.write(f"Debug - tuple length: {len(result)}")
-                        st.write(f"Debug - values: {[type(x).__name__ for x in result]}")
-                    
-                    # Check for None returns (error cases)
-                    if result is None or (isinstance(result, tuple) and result[0] is None):
-                        st.error("❌ Forecast Analysis Failed. main() returned None - check the detailed logs below.")
+                    # Show detailed error information in an expander
+                    with st.expander("🔍 Show Detailed Error Information"):
+                        st.code(error_traceback)
                         
-                        # Try to get more details from the logs
-                        st.subheader("🔍 Debugging Information")
+                        # Show system information that might help debug
+                        st.subheader("💻 System Information")
+                        try:
+                            import os, sys
+                            st.write(f"Python version: {sys.version}")
+                            st.write(f"Working directory: {os.getcwd()}")
+                            st.write(f"Environment variables:")
+                            for key in ['GOOGLE_SHEETS_CREDENTIALS', 'gcp_service_account_sheets']:
+                                if key in os.environ:
+                                    st.write(f"  {key}: {'SET' if os.environ[key] else 'EMPTY'}")
+                                else:
+                                    st.write(f"  {key}: NOT SET")
+                        except Exception as sys_e:
+                            st.write(f"Could not get system info: {sys_e}")
+                
+            elif result is None or (isinstance(result, tuple) and result[0] is None):
+                with result_container:
+                    st.error("❌ Forecast Analysis Failed. main() returned None - check the detailed logs.")
+                    
+                    with st.expander("🔍 Show Debugging Information"):
                         st.write("The main() function returned None, indicating an error occurred.")
                         st.write("Common causes:")
                         st.write("- File not found (CSV files missing)")
@@ -5170,79 +5240,43 @@ with button_container:
                         st.write("- Memory or timeout limits exceeded")
                         st.write("- Network connectivity issues")
                         
-                        st.stop()
-                    
+            else:
+                # Success case
+                try:
                     # Unpack the result
                     if isinstance(result, tuple) and len(result) == 3:
                         excel_buffer, filename, drive_file_id = result
                     else:
-                        st.error(f"❌ main() returned unexpected format: {result}")
-                        st.stop()
-                        
-                except Exception as e:
-                    import traceback
-                    error_traceback = traceback.format_exc()
+                        raise ValueError(f"Unexpected result format: {result}")
                     
-                    st.error(f"❌ Forecast Analysis crashed: {type(e).__name__} - {str(e)}")
-                    
-                    # Show detailed error information
-                    st.subheader("🔍 Detailed Error Information")
-                    st.code(error_traceback)
-                    
-                    # Show system information that might help debug
-                    st.subheader("💻 System Information")
-                    try:
-                        import os, sys
-                        st.write(f"Python version: {sys.version}")
-                        st.write(f"Working directory: {os.getcwd()}")
-                        st.write(f"Environment variables:")
-                        for key in ['GOOGLE_SHEETS_CREDENTIALS', 'gcp_service_account_sheets']:
-                            if key in os.environ:
-                                st.write(f"  {key}: {'SET' if os.environ[key] else 'EMPTY'}")
-                            else:
-                                st.write(f"  {key}: NOT SET")
-                    except Exception as sys_e:
-                        st.write(f"Could not get system info: {sys_e}")
-                    
-                    st.stop()
-                # Finish progress bar
-                for i in range(40, 100):
-                    stage_index = i // 14
-                    if stage_index < len(neural_stages):
-                        status_text.markdown(
-                            f'<p class="status-text">{neural_stages[stage_index]}</p>',
-                            unsafe_allow_html=True
-                        )
-                    time.sleep(0.02)
-                    progress_bar.progress(i + 1)
-
-                # Clear progress UI
-                progress_bar.empty()
-                status_text.empty()
-
-                # Show results
-                if excel_buffer:
+                    # Store in session state
                     st.session_state.excel_buffer = excel_buffer
                     st.session_state.filename = filename
                     st.session_state.drive_file_id = drive_file_id
-
+                    
                     end_time = time.time()
                     duration_sec = end_time - start_time
                     duration_str = time.strftime("%M:%S", time.gmtime(duration_sec))
                     timestamp_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
+                    
                     with result_container:
                         st.success(
                             f"✅ FORECAST ANALYSIS COMPLETED | REPORTS READY!\n\n"
                             f"📅 Generated at: **{timestamp_str}**\n"
                             f"⏱ Duration taken for analysis: **{duration_str}**"
                         )
-                else:
+                        
+                except Exception as e:
                     with result_container:
-                        st.error("❌ Forecast Analysis Failed. Please try again.")
+                        st.error(f"❌ Error processing results: {str(e)}")
 
+# Check if we're currently processing (for page refreshes)
+if st.session_state.processing:
+    with progress_container:
+        st.info("🔄 Analysis in progress... Please wait.")
+        st.spinner("Processing...")
 
-# --- Neural Access Portal ---
+# --- Neural Access Portal --- (rest of your code remains the same)
 if st.session_state.excel_buffer:
     st.markdown("""
         <div class="holo-card">
@@ -5268,7 +5302,6 @@ if st.session_state.excel_buffer:
         ):
             pass
 
-
     with col2:
         if st.session_state.drive_file_id:
             file_id = st.session_state.drive_file_id
@@ -5286,59 +5319,3 @@ if st.session_state.excel_buffer:
                 🗠 LOOKER DASHBOARD
             </a>
         """, unsafe_allow_html=True)
-
-# --- Data Visualization Preview ---
-st.markdown("""
-    <div class="viz-preview">
-        <h3 style="color: #40e0d0; font-family: 'Space Grotesk', sans-serif; margin-bottom: 1rem;">
-            📈 PREDICTIVE VISUALIZATION MATRIX
-        </h3>
-        <p style="color: rgba(255, 255, 255, 0.6); font-family: 'JetBrains Mono', monospace; font-size: 0.9rem;">
-            Real-time quantum analytics • Multi-dimensional forecasting • Neural pattern recognition
-        </p>
-    </div>
-""", unsafe_allow_html=True)
-
-# --- Footer ---
-# --- Footer ---
-st.markdown("""
-    <div style="text-align: center; padding: 3rem 0 2rem 0; margin-top: 3rem; border-top: 1px solid rgba(64, 224, 208, 0.2);">
-        <p style="color: rgba(64, 224, 208, 0.8); font-family: 'JetBrains Mono', monospace; font-size: 0.9rem; margin: 0;">
-            HERBAL GOODNESS © 2025 | POWERED BY SCMplify CONSULTANCY | VERSION 4.0.1
-        </p>
-        <p style="color: rgba(255, 255, 255, 0.4); font-family: 'Space Grotesk', sans-serif; font-size: 0.8rem; margin: 0.5rem 0 0 0;">
-            Revolutionizing inventory management through intelligent forecasting
-        </p>
-    </div>
-""", unsafe_allow_html=True)  # <-- closing triple quotes AND parenthesis
-
-st.markdown('</div>', unsafe_allow_html=True)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

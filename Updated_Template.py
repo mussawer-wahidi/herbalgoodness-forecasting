@@ -24,14 +24,6 @@ import gspread
 from google.oauth2.service_account import Credentials
 
 
-def ignore_indexerror(exctype, value, traceback):
-    if exctype == IndexError:
-        print(f"⚠️ Ignored IndexError: {value}")
-        return
-    sys.__excepthook__(exctype, value, traceback)
-
-sys.excepthook = ignore_indexerror
-
 warnings.filterwarnings('ignore')
 
 # Always reference files relative to the script's directory
@@ -5193,6 +5185,7 @@ st.markdown("""
 """, unsafe_allow_html=True)  # <-- closing triple quotes AND parenthesis
 
 st.markdown('</div>', unsafe_allow_html=True)
+
 
 
 

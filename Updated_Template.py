@@ -3332,12 +3332,14 @@ def upload_excel_to_google_sheet(excel_buffer, sheet_id=None):
         return None
      
 def upload_to_google_drive_from_buffer(buffer):
+    from datetime import datetime
     # BASE_DIR = os.path.dirname(__file__)
     # SERVICE_ACCOUNT_FILE = os.path.join(BASE_DIR, "GoogleDriveAPIKey.json")
     SCOPES = ['https://www.googleapis.com/auth/drive']
     SHARED_DRIVE_ID = '0ANRBYKNxrAXaUk9PVA'
     FOLDER_ID = '0ANRBYKNxrAXaUk9PVA'
     FIXED_FILENAME = "Forecasting Excel Workbook Format.xlsx"
+    SUBFOLDER_NAME = "Output_TimeStamps"
 
     # Handle service account credentials - GCP only
     if "gcp_service_account_drive" not in os.environ:
@@ -3361,6 +3363,10 @@ def upload_to_google_drive_from_buffer(buffer):
     )
     drive_service = build('drive', 'v3', credentials=credentials)
 
+    # =============================================================================
+    # PART 1: Original functionality - Update/Create main file
+    # =============================================================================
+    
     # Check if file with same name already exists
     query = f"'{FOLDER_ID}' in parents and name = '{FIXED_FILENAME}' and trashed = false"
     result = drive_service.files().list(
@@ -3407,6 +3413,95 @@ def upload_to_google_drive_from_buffer(buffer):
         ).execute()
         file_id = uploaded_file.get('id')
         print(f"✅ New file uploaded: {FIXED_FILENAME} (ID: {file_id})")
+
+    # =============================================================================
+    # PART 2: NEW FUNCTIONALITY - Save timestamped copy to subfolder
+    # =============================================================================
+    
+    try:
+        print("📁 Starting timestamped backup process...")
+        
+        # Step 1: Find the existing subfolder (assumes it exists)
+        subfolder_query = f"'{FOLDER_ID}' in parents and name = '{SUBFOLDER_NAME}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
+        subfolder_result = drive_service.files().list(
+            q=subfolder_query,
+            fields="files(id, name)",
+            supportsAllDrives=True,
+            includeItemsFromAllDrives=True,
+            corpora="drive",
+            driveId=SHARED_DRIVE_ID
+        ).execute()
+        
+        subfolder_files = subfolder_result.get("files", [])
+        
+        if subfolder_files:
+            subfolder_id = subfolder_files[0]['id']
+            print(f"📂 Found subfolder: {SUBFOLDER_NAME} (ID: {subfolder_id})")
+        else:
+            raise FileNotFoundError(f"❌ Subfolder '{SUBFOLDER_NAME}' not found. Please create it manually in your Drive folder.")
+        
+        # Step 2: Generate timestamped filename
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamped_filename = f"Forecasting_Backup_{timestamp}.xlsx"
+        print(f"🕒 Generated timestamped filename: {timestamped_filename}")
+        
+        # Step 3: Check if file with same timestamp already exists (overwrite if exists)
+        timestamp_query = f"'{subfolder_id}' in parents and name = '{timestamped_filename}' and trashed = false"
+        timestamp_result = drive_service.files().list(
+            q=timestamp_query,
+            fields="files(id)",
+            supportsAllDrives=True,
+            includeItemsFromAllDrives=True,
+            corpora="drive",
+            driveId=SHARED_DRIVE_ID
+        ).execute()
+        
+        existing_timestamp_files = timestamp_result.get("files", [])
+        
+        # Step 4: Upload or update timestamped file
+        buffer.seek(0)  # Reset buffer position
+        media = MediaIoBaseUpload(buffer,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            resumable=True
+        )
+        
+        if existing_timestamp_files:
+            # Update existing timestamped file
+            timestamp_file_id = existing_timestamp_files[0]['id']
+            updated_timestamp_file = drive_service.files().update(
+                fileId=timestamp_file_id,
+                media_body=media,
+                supportsAllDrives=True
+            ).execute()
+            print(f"🔄 Overwritten existing timestamped backup: {timestamped_filename}")
+        else:
+            # Create new timestamped file
+            timestamp_file_metadata = {
+                'name': timestamped_filename,
+                'parents': [subfolder_id],
+                'driveId': SHARED_DRIVE_ID
+            }
+            uploaded_timestamp_file = drive_service.files().create(
+                body=timestamp_file_metadata,
+                media_body=media,
+                supportsAllDrives=True,
+                fields='id'
+            ).execute()
+            print(f"✅ New timestamped backup saved: {timestamped_filename}")
+            
+        print("📚 Timestamped backup process completed successfully!")
+        
+    except Exception as e:
+        print(f"⚠️ Warning: Failed to save timestamped backup: {str(e)}")
+        print("📝 Main file upload was successful, continuing...")
+        # Don't raise the exception - let the main functionality continue
+    
+    # Clean up temp file
+    try:
+        os.remove(SERVICE_ACCOUNT_FILE)
+        print("🧹 Cleaned up temporary credentials file.")
+    except:
+        pass
 
     return file_id
 

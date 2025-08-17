@@ -4456,7 +4456,7 @@ def main():
         excel_buffer.seek(0)
 
         # Upload to Google Sheets before returning
-        upload_excel_to_google_sheet(excel_buffer)
+        # upload_excel_to_google_sheet(excel_buffer)
 
         # Upload to Google Drive (NEW)
         drive_file_id = upload_to_google_drive_from_buffer(excel_buffer)
@@ -5185,6 +5185,7 @@ st.markdown("""
 """, unsafe_allow_html=True)  # <-- closing triple quotes AND parenthesis
 
 st.markdown('</div>', unsafe_allow_html=True)
+
 
 
 

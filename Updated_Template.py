@@ -5151,11 +5151,6 @@ with button_container:
                     # Call main() with better error capture
                     result = main()
                     
-                    # Debug the result
-                    st.write(f"Debug - main() returned: {type(result)}")
-                    if isinstance(result, tuple):
-                        st.write(f"Debug - tuple length: {len(result)}")
-                        st.write(f"Debug - values: {[type(x).__name__ for x in result]}")
                     
                     # Check for None returns (error cases)
                     if result is None or (isinstance(result, tuple) and result[0] is None):
@@ -5313,6 +5308,7 @@ st.markdown("""
 """, unsafe_allow_html=True)  # <-- closing triple quotes AND parenthesis
 
 st.markdown('</div>', unsafe_allow_html=True)
+
 
 
 

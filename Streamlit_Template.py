@@ -24,14 +24,6 @@ import gspread
 from google.oauth2.service_account import Credentials
 
 
-def ignore_indexerror(exctype, value, traceback):
-    if exctype == IndexError:
-        print(f"⚠️ Ignored IndexError: {value}")
-        return
-    sys.__excepthook__(exctype, value, traceback)
-
-sys.excepthook = ignore_indexerror
-
 warnings.filterwarnings('ignore')
 
 # Always reference files relative to the script's directory
@@ -1881,9 +1873,9 @@ class EnhancedForecastingModel:
                         'Stock_Status': stock_status,
                         'PO_Urgency': urgency,
                         'Recommended_PO_Qty': po_quantity,
-                        'Next_Order_Date': order_dates[0] if order_dates else pd.Timestamp.now() + pd.DateOffset(days=30),
-                        'Next_Order_Qty': order_qtys[0] if order_qtys else 0,
-                        'Next_Arrival_Date': arrival_dates[0] if arrival_dates else pd.Timestamp.now() + pd.DateOffset(days=45),
+                        'Next_Order_Date': order_dates[0],
+                        'Next_Order_Qty': order_qtys[0],
+                        'Next_Arrival_Date': arrival_dates[0],
                         'Months_of_Inventory': months_of_inventory,
                         'Velocity_Category': velocity_category,
                         'Safety_Stock_Months': safety_stock_months,
@@ -1900,12 +1892,12 @@ class EnhancedForecastingModel:
                         'Last_3_Months_Avg': last_3_months_avg,
                         'Total_Sales': total_sales,
                         'Growth_Rate': growth_rate if not pd.isna(growth_rate) else 0.0,
-                        'Order_2_Date': order_dates[1] if len(order_dates) > 1 else pd.Timestamp.now() + pd.DateOffset(days=60),
-                        'Order_2_Qty': order_qtys[1] if len(order_qtys) > 1 else 0,
-                        'Order_2_Arrival': arrival_dates[1] if len(arrival_dates) > 1 else pd.Timestamp.now() + pd.DateOffset(days=75),
-                        'Order_3_Date': order_dates[2] if len(order_dates) > 2 else pd.Timestamp.now() + pd.DateOffset(days=90),
-                        'Order_3_Qty': order_qtys[2] if len(order_qtys) > 2 else 0,
-                        'Order_3_Arrival': arrival_dates[2] if len(arrival_dates) > 2 else pd.Timestamp.now() + pd.DateOffset(days=105),
+                        'Order_2_Date': order_dates[1],
+                        'Order_2_Qty': order_qtys[1],
+                        'Order_2_Arrival': arrival_dates[1],
+                        'Order_3_Date': order_dates[2],
+                        'Order_3_Qty': order_qtys[2],
+                        'Order_3_Arrival': arrival_dates[2],
                         'Lead_Time': lead_time,
                         'Service_Level': f"{sku_info.get('service_level', 0.85)*100:.0f}%",
                         'Monthly_Velocity': round(sku_info.get('monthly_velocity', 0), 1) if not pd.isna(sku_info.get('monthly_velocity', 0)) else 0.0,
@@ -2515,9 +2507,9 @@ class EnhancedForecastingModel:
                         'Stock_Status': stock_status,
                         'PO_Urgency': urgency,
                         'Recommended_PO_Qty': po_quantity,
-                        'Next_Order_Date': order_dates[0] if order_dates else pd.Timestamp.now() + pd.DateOffset(days=30),
-                        'Next_Order_Qty': order_qtys[0] if order_qtys else 0,
-                        'Next_Arrival_Date': arrival_dates[0] if arrival_dates else pd.Timestamp.now() + pd.DateOffset(days=45),
+                        'Next_Order_Date': order_dates[0],
+                        'Next_Order_Qty': order_qtys[0],
+                        'Next_Arrival_Date': arrival_dates[0],
                         'Months_of_Inventory': months_of_inventory,
                         'Velocity_Category': velocity_category,
                         'Safety_Stock_Months': safety_stock_months,
@@ -2534,12 +2526,12 @@ class EnhancedForecastingModel:
                         'Last_3_Months_Avg': last_3_months_avg,
                         'Total_Sales': total_sales,
                         'Growth_Rate': growth_rate if not pd.isna(growth_rate) else 0.0,
-                        'Order_2_Date': order_dates[1] if len(order_dates) > 1 else pd.Timestamp.now() + pd.DateOffset(days=60),
-                        'Order_2_Qty': order_qtys[1] if len(order_qtys) > 1 else 0,
-                        'Order_2_Arrival': arrival_dates[1] if len(arrival_dates) > 1 else pd.Timestamp.now() + pd.DateOffset(days=75),
-                        'Order_3_Date': order_dates[2] if len(order_dates) > 2 else pd.Timestamp.now() + pd.DateOffset(days=90),
-                        'Order_3_Qty': order_qtys[2] if len(order_qtys) > 2 else 0,
-                        'Order_3_Arrival': arrival_dates[2] if len(arrival_dates) > 2 else pd.Timestamp.now() + pd.DateOffset(days=105),
+                        'Order_2_Date': order_dates[1],
+                        'Order_2_Qty': order_qtys[1],
+                        'Order_2_Arrival': arrival_dates[1],
+                        'Order_3_Date': order_dates[2],
+                        'Order_3_Qty': order_qtys[2],
+                        'Order_3_Arrival': arrival_dates[2],
                         'Lead_Time': lead_time,
                         'Service_Level': f"{sku_info.get('service_level', 0.85)*100:.0f}%",
                         'Monthly_Velocity': round(sku_info.get('monthly_velocity', 0), 1) if not pd.isna(sku_info.get('monthly_velocity', 0)) else 0.0,
@@ -2705,9 +2697,9 @@ class EnhancedForecastingModel:
                             'Stock_Status': stock_status,
                             'PO_Urgency': urgency,
                             'Recommended_PO_Qty': po_quantity,
-                            'Next_Order_Date': order_dates[0] if order_dates else pd.Timestamp.now() + pd.DateOffset(days=30),
-                            'Next_Order_Qty': order_qtys[0] if order_qtys else 0,
-                            'Next_Arrival_Date': arrival_dates[0] if arrival_dates else pd.Timestamp.now() + pd.DateOffset(days=45),
+                            'Next_Order_Date': order_dates[0],
+                            'Next_Order_Qty': order_qtys[0],
+                            'Next_Arrival_Date': arrival_dates[0],
                             'Months_of_Inventory': months_of_inventory,
                             'Velocity_Category': velocity_category,
                             'Safety_Stock_Months': safety_stock_months,
@@ -2724,12 +2716,12 @@ class EnhancedForecastingModel:
                             'Last_3_Months_Avg': last_3_months_avg,
                             'Total_Sales': total_sales,
                             'Growth_Rate': growth_rate if not pd.isna(growth_rate) else 0.0,
-                            'Order_2_Date': order_dates[1] if len(order_dates) > 1 else pd.Timestamp.now() + pd.DateOffset(days=60),
-                            'Order_2_Qty': order_qtys[1] if len(order_qtys) > 1 else 0,
-                            'Order_2_Arrival': arrival_dates[1] if len(arrival_dates) > 1 else pd.Timestamp.now() + pd.DateOffset(days=75),
-                            'Order_3_Date': order_dates[2] if len(order_dates) > 2 else pd.Timestamp.now() + pd.DateOffset(days=90),
-                            'Order_3_Qty': order_qtys[2] if len(order_qtys) > 2 else 0,
-                            'Order_3_Arrival': arrival_dates[2] if len(arrival_dates) > 2 else pd.Timestamp.now() + pd.DateOffset(days=105),
+                            'Order_2_Date': order_dates[1],
+                            'Order_2_Qty': order_qtys[1],
+                            'Order_2_Arrival': arrival_dates[1],
+                            'Order_3_Date': order_dates[2],
+                            'Order_3_Qty': order_qtys[2],
+                            'Order_3_Arrival': arrival_dates[2],
                             'Lead_Time': lead_time,
                             'Service_Level': f"{sku_info.get('service_level', 0.85)*100:.0f}%",
                             'Monthly_Velocity': round(sku_info.get('monthly_velocity', 0), 1) if not pd.isna(sku_info.get('monthly_velocity', 0)) else 0.0,
@@ -2983,9 +2975,9 @@ class EnhancedForecastingModel:
                             'Stock_Status': stock_status,
                             'PO_Urgency': urgency,
                             'Recommended_PO_Qty': po_quantity,
-                            'Next_Order_Date': order_dates[0] if order_dates else pd.Timestamp.now() + pd.DateOffset(days=30),
-                            'Next_Order_Qty': order_qtys[0] if order_qtys else 0,
-                            'Next_Arrival_Date': arrival_dates[0] if arrival_dates else pd.Timestamp.now() + pd.DateOffset(days=45),
+                            'Next_Order_Date': order_dates[0],
+                            'Next_Order_Qty': order_qtys[0],
+                            'Next_Arrival_Date': arrival_dates[0],
                             'Months_of_Inventory': months_of_inventory,
                             'Velocity_Category': velocity_category,
                             'Safety_Stock_Months': safety_stock_months,
@@ -3002,12 +2994,12 @@ class EnhancedForecastingModel:
                             'Last_3_Months_Avg': last_3_months_avg,
                             'Total_Sales': total_sales,
                             'Growth_Rate': growth_rate if not pd.isna(growth_rate) else 0.0,
-                            'Order_2_Date': order_dates[1] if len(order_dates) > 1 else pd.Timestamp.now() + pd.DateOffset(days=60),
-                            'Order_2_Qty': order_qtys[1] if len(order_qtys) > 1 else 0,
-                            'Order_2_Arrival': arrival_dates[1] if len(arrival_dates) > 1 else pd.Timestamp.now() + pd.DateOffset(days=75),
-                            'Order_3_Date': order_dates[2] if len(order_dates) > 2 else pd.Timestamp.now() + pd.DateOffset(days=90),
-                            'Order_3_Qty': order_qtys[2] if len(order_qtys) > 2 else 0,
-                            'Order_3_Arrival': arrival_dates[2] if len(arrival_dates) > 2 else pd.Timestamp.now() + pd.DateOffset(days=105),
+                            'Order_2_Date': order_dates[1],
+                            'Order_2_Qty': order_qtys[1],
+                            'Order_2_Arrival': arrival_dates[1],
+                            'Order_3_Date': order_dates[2],
+                            'Order_3_Qty': order_qtys[2],
+                            'Order_3_Arrival': arrival_dates[2],
                             'Lead_Time': lead_time,
                             'Service_Level': f"{sku_info.get('service_level', 0.85)*100:.0f}%",
                             'Monthly_Velocity': round(sku_info.get('monthly_velocity', 0), 1) if not pd.isna(sku_info.get('monthly_velocity', 0)) else 0.0,
@@ -3173,9 +3165,9 @@ class EnhancedForecastingModel:
                             'Stock_Status': stock_status,
                             'PO_Urgency': urgency,
                             'Recommended_PO_Qty': po_quantity,
-                            'Next_Order_Date': order_dates[0] if order_dates else pd.Timestamp.now() + pd.DateOffset(days=30),
-                            'Next_Order_Qty': order_qtys[0] if order_qtys else 0,
-                            'Next_Arrival_Date': arrival_dates[0] if arrival_dates else pd.Timestamp.now() + pd.DateOffset(days=45),
+                            'Next_Order_Date': order_dates[0],
+                            'Next_Order_Qty': order_qtys[0],
+                            'Next_Arrival_Date': arrival_dates[0],
                             'Months_of_Inventory': months_of_inventory,
                             'Velocity_Category': velocity_category,
                             'Safety_Stock_Months': safety_stock_months,
@@ -3192,12 +3184,12 @@ class EnhancedForecastingModel:
                             'Last_3_Months_Avg': last_3_months_avg,
                             'Total_Sales': total_sales,
                             'Growth_Rate': growth_rate if not pd.isna(growth_rate) else 0.0,
-                            'Order_2_Date': order_dates[1] if len(order_dates) > 1 else pd.Timestamp.now() + pd.DateOffset(days=60),
-                            'Order_2_Qty': order_qtys[1] if len(order_qtys) > 1 else 0,
-                            'Order_2_Arrival': arrival_dates[1] if len(arrival_dates) > 1 else pd.Timestamp.now() + pd.DateOffset(days=75),
-                            'Order_3_Date': order_dates[2] if len(order_dates) > 2 else pd.Timestamp.now() + pd.DateOffset(days=90),
-                            'Order_3_Qty': order_qtys[2] if len(order_qtys) > 2 else 0,
-                            'Order_3_Arrival': arrival_dates[2] if len(arrival_dates) > 2 else pd.Timestamp.now() + pd.DateOffset(days=105),
+                            'Order_2_Date': order_dates[1],
+                            'Order_2_Qty': order_qtys[1],
+                            'Order_2_Arrival': arrival_dates[1],
+                            'Order_3_Date': order_dates[2],
+                            'Order_3_Qty': order_qtys[2],
+                            'Order_3_Arrival': arrival_dates[2],
                             'Lead_Time': lead_time,
                             'Service_Level': f"{sku_info.get('service_level', 0.85)*100:.0f}%",
                             'Monthly_Velocity': round(sku_info.get('monthly_velocity', 0), 1) if not pd.isna(sku_info.get('monthly_velocity', 0)) else 0.0,
@@ -3252,14 +3244,49 @@ def upload_excel_to_google_sheet(excel_buffer, sheet_id=None):
     import numpy as np
     import gspread
     import time
+    import os
+    import json
     from google.oauth2.service_account import Credentials
 
+    print("🔄 Using GCP credentials from environment...")
+    
+    # Ensure env var is present
+    if "gcp_service_account_sheets" not in st.secrets:
+        raise FileNotFoundError("❌ No GCP service account credentials found in environment variables.")
+
+    # ✅ Debug: Check what we actually got from env
+    try:
+        raw_secret = st.secrets["gcp_service_account_sheets"]
+        print(f"🔍 Secret length: {len(raw_secret)} characters")
+        creds_dict = json.loads(raw_secret)
+        print(f"✅ Loaded service account for: {creds_dict.get('client_email', 'UNKNOWN EMAIL')}")
+    except Exception as e:
+        print("❌ Failed to parse service account secret")
+        import traceback
+        traceback.print_exc()
+        raise
+    
+    # Save to temp file (exactly like your working function)
+    credentials_file = "temp_credentials.json"
+    with open(credentials_file, "w") as f:
+        json.dump(creds_dict, f)
+    print("✅ Credentials saved to temp file.")
+
+    # Create credentials from temp file
     scopes = ['https://www.googleapis.com/auth/spreadsheets']
-    credentials = Credentials.from_service_account_file("credentials.json", scopes=scopes)
+    credentials = Credentials.from_service_account_file(credentials_file, scopes=scopes)
     gc = gspread.authorize(credentials)
 
+    # Clean up temp file
+    try:
+        os.remove(credentials_file)
+        print("🧹 Cleaned up temp credentials file.")
+    except:
+        pass
+
     # ✅ Set your fixed Google Sheet ID here
-    sheet_id = "1051NJelrnQGKwKDXWmaMiU1-fBgm4ZSd4s_G2-hJIcE"
+    if sheet_id is None:
+        sheet_id = "1051NJelrnQGKwKDXWmaMiU1-fBgm4ZSd4s_G2-hJIcE"
 
     try:
         sheet = gc.open_by_key(sheet_id)
@@ -3303,31 +3330,43 @@ def upload_excel_to_google_sheet(excel_buffer, sheet_id=None):
         import traceback
         traceback.print_exc()
         return None
- 
+     
 def upload_to_google_drive_from_buffer(buffer):
+    from datetime import datetime
     # BASE_DIR = os.path.dirname(__file__)
     # SERVICE_ACCOUNT_FILE = os.path.join(BASE_DIR, "GoogleDriveAPIKey.json")
     SCOPES = ['https://www.googleapis.com/auth/drive']
     SHARED_DRIVE_ID = '0ANRBYKNxrAXaUk9PVA'
     FOLDER_ID = '0ANRBYKNxrAXaUk9PVA'
     FIXED_FILENAME = "Forecasting Excel Workbook Format.xlsx"
+    SUBFOLDER_NAME = "Output_TimeStamps"
 
-    # Handle service account credentials for Google Drive
+    # Handle service account credentials - GCP only
     if "gcp_service_account_drive" not in st.secrets:
-        raise FileNotFoundError("❌ No Google Drive service account credentials found in st.secrets.")
+        raise FileNotFoundError("❌ No Google Drive service account credentials found in environment variables.")
     
-    print("🔄 Using Google Drive credentials from st.secrets...")
+    print("🔄 Using Google Drive credentials from environment...")
     
-    # Load credentials directly from Streamlit secrets
-    creds_dict = dict(st.secrets["gcp_service_account_drive"])
-
-
+    # Load credentials from environment
+    creds_dict = json.loads(st.secrets["gcp_service_account_drive"])
+    
+    # Write to temporary file (required for from_service_account_file)
+    SERVICE_ACCOUNT_FILE = "temp_service_account.json"
+    with open(SERVICE_ACCOUNT_FILE, "w") as f:
+        json.dump(creds_dict, f)
+    
+    print("✅ Google Drive credentials loaded and saved to temp file.")
+    
     # Initialize credentials and service
     credentials = service_account.Credentials.from_service_account_file(
         SERVICE_ACCOUNT_FILE, scopes=SCOPES
     )
     drive_service = build('drive', 'v3', credentials=credentials)
 
+    # =============================================================================
+    # PART 1: Original functionality - Update/Create main file
+    # =============================================================================
+    
     # Check if file with same name already exists
     query = f"'{FOLDER_ID}' in parents and name = '{FIXED_FILENAME}' and trashed = false"
     result = drive_service.files().list(
@@ -3375,6 +3414,95 @@ def upload_to_google_drive_from_buffer(buffer):
         file_id = uploaded_file.get('id')
         print(f"✅ New file uploaded: {FIXED_FILENAME} (ID: {file_id})")
 
+    # =============================================================================
+    # PART 2: NEW FUNCTIONALITY - Save timestamped copy to subfolder
+    # =============================================================================
+    
+    try:
+        print("📁 Starting timestamped backup process...")
+        
+        # Step 1: Find the existing subfolder (assumes it exists)
+        subfolder_query = f"'{FOLDER_ID}' in parents and name = '{SUBFOLDER_NAME}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
+        subfolder_result = drive_service.files().list(
+            q=subfolder_query,
+            fields="files(id, name)",
+            supportsAllDrives=True,
+            includeItemsFromAllDrives=True,
+            corpora="drive",
+            driveId=SHARED_DRIVE_ID
+        ).execute()
+        
+        subfolder_files = subfolder_result.get("files", [])
+        
+        if subfolder_files:
+            subfolder_id = subfolder_files[0]['id']
+            print(f"📂 Found subfolder: {SUBFOLDER_NAME} (ID: {subfolder_id})")
+        else:
+            raise FileNotFoundError(f"❌ Subfolder '{SUBFOLDER_NAME}' not found. Please create it manually in your Drive folder.")
+        
+        # Step 2: Generate timestamped filename
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamped_filename = f"Forecasting_Backup_{timestamp}.xlsx"
+        print(f"🕒 Generated timestamped filename: {timestamped_filename}")
+        
+        # Step 3: Check if file with same timestamp already exists (overwrite if exists)
+        timestamp_query = f"'{subfolder_id}' in parents and name = '{timestamped_filename}' and trashed = false"
+        timestamp_result = drive_service.files().list(
+            q=timestamp_query,
+            fields="files(id)",
+            supportsAllDrives=True,
+            includeItemsFromAllDrives=True,
+            corpora="drive",
+            driveId=SHARED_DRIVE_ID
+        ).execute()
+        
+        existing_timestamp_files = timestamp_result.get("files", [])
+        
+        # Step 4: Upload or update timestamped file
+        buffer.seek(0)  # Reset buffer position
+        media = MediaIoBaseUpload(buffer,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            resumable=True
+        )
+        
+        if existing_timestamp_files:
+            # Update existing timestamped file
+            timestamp_file_id = existing_timestamp_files[0]['id']
+            updated_timestamp_file = drive_service.files().update(
+                fileId=timestamp_file_id,
+                media_body=media,
+                supportsAllDrives=True
+            ).execute()
+            print(f"🔄 Overwritten existing timestamped backup: {timestamped_filename}")
+        else:
+            # Create new timestamped file
+            timestamp_file_metadata = {
+                'name': timestamped_filename,
+                'parents': [subfolder_id],
+                'driveId': SHARED_DRIVE_ID
+            }
+            uploaded_timestamp_file = drive_service.files().create(
+                body=timestamp_file_metadata,
+                media_body=media,
+                supportsAllDrives=True,
+                fields='id'
+            ).execute()
+            print(f"✅ New timestamped backup saved: {timestamped_filename}")
+            
+        print("📚 Timestamped backup process completed successfully!")
+        
+    except Exception as e:
+        print(f"⚠️ Warning: Failed to save timestamped backup: {str(e)}")
+        print("📝 Main file upload was successful, continuing...")
+        # Don't raise the exception - let the main functionality continue
+    
+    # Clean up temp file
+    try:
+        os.remove(SERVICE_ACCOUNT_FILE)
+        print("🧹 Cleaned up temporary credentials file.")
+    except:
+        pass
+
     return file_id
 
          
@@ -3406,22 +3534,28 @@ def main():
             try:
                 print("🔄 Using GCP credentials from environment...")
                 
-                # ✅ Ensure secret is present
+                # Ensure env var is present
                 if "gcp_service_account_sheets" not in st.secrets:
-                    raise FileNotFoundError("❌ No GCP service account credentials found in Streamlit secrets.")
-            
-                # ✅ Debug: check secret length and email
-                raw_secret = st.secrets["gcp_service_account_sheets"]
-                creds_dict = dict(raw_secret)  # Convert to regular dict
-                print(f"🔍 Secret keys: {list(creds_dict.keys())}")
-                print(f"✅ Loaded service account for: {creds_dict.get('client_email', 'UNKNOWN EMAIL')}")
-            
-                # Save to temp file for client libraries that need a file path
+                    raise FileNotFoundError("❌ No GCP service account credentials found in environment variables.")
+        
+                # ✅ Debug: Check what we actually got from env
+                try:
+                    raw_secret = st.secrets["gcp_service_account_sheets"]
+                    print(f"🔍 Secret length: {len(raw_secret)} characters")
+                    creds_dict = json.loads(raw_secret)
+                    print(f"✅ Loaded service account for: {creds_dict.get('client_email', 'UNKNOWN EMAIL')}")
+                except Exception as e:
+                    print("❌ Failed to parse service account secret")
+                    import traceback
+                    traceback.print_exc()
+                    raise
+                
+                # Save to temp file
                 credentials_file = "temp_credentials.json"
                 with open(credentials_file, "w") as f:
                     json.dump(creds_dict, f)
                 print("✅ Credentials saved to temp file.")
-
+        
                 # Create connector
                 gs_connector = GoogleSheetsConnector(credentials_file)
         
@@ -5017,11 +5151,6 @@ with button_container:
                     # Call main() with better error capture
                     result = main()
                     
-                    # Debug the result
-                    st.write(f"Debug - main() returned: {type(result)}")
-                    if isinstance(result, tuple):
-                        st.write(f"Debug - tuple length: {len(result)}")
-                        st.write(f"Debug - values: {[type(x).__name__ for x in result]}")
                     
                     # Check for None returns (error cases)
                     if result is None or (isinstance(result, tuple) and result[0] is None):
@@ -5039,8 +5168,8 @@ with button_container:
                         st.stop()
                     
                     # Unpack the result
-                    if isinstance(result, tuple) and len(result) == 2:
-                        excel_buffer, drive_file_id = result
+                    if isinstance(result, tuple) and len(result) == 3:
+                        excel_buffer, filename, drive_file_id = result
                     else:
                         st.error(f"❌ main() returned unexpected format: {result}")
                         st.stop()
@@ -5063,8 +5192,8 @@ with button_container:
                         st.write(f"Working directory: {os.getcwd()}")
                         st.write(f"Environment variables:")
                         for key in ['GOOGLE_SHEETS_CREDENTIALS', 'gcp_service_account_sheets']:
-                            if key in os.environ:
-                                st.write(f"  {key}: {'SET' if os.environ[key] else 'EMPTY'}")
+                            if key in st.secrets:
+                                st.write(f"  {key}: {'SET' if st.secrets[key] else 'EMPTY'}")
                             else:
                                 st.write(f"  {key}: NOT SET")
                     except Exception as sys_e:
@@ -5106,8 +5235,6 @@ with button_container:
                 else:
                     with result_container:
                         st.error("❌ Forecast Analysis Failed. Please try again.")
-
-
 
 
 # --- Neural Access Portal ---
@@ -5181,6 +5308,13 @@ st.markdown("""
 """, unsafe_allow_html=True)  # <-- closing triple quotes AND parenthesis
 
 st.markdown('</div>', unsafe_allow_html=True)
+
+
+
+
+
+
+
 
 
 

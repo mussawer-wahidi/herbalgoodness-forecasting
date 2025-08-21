@@ -62,7 +62,7 @@ class GoogleSheetsConnector:
         """
         Extract inventory data from Google Sheets
         Column B: SKU
-        Column AC: Inventory total
+        Column AK: Inventory total
         """
         try:
             print("📦 Extracting inventory data from Google Sheets...")
@@ -78,9 +78,9 @@ class GoogleSheetsConnector:
                 print("❌ No data found in inventory sheet")
                 return {}
             
-            # Find column indices (B = index 1, AC = index 28)
+            # Find column indices (B = index 1, AK = index 36)
             sku_col = 1  # Column B
-            inventory_col = 28  # Column AC
+            inventory_col = 36  # Column AK
             
             inventory_data = {}
             skus_processed = 0
@@ -5308,6 +5308,7 @@ st.markdown("""
 """, unsafe_allow_html=True)  # <-- closing triple quotes AND parenthesis
 
 st.markdown('</div>', unsafe_allow_html=True)
+
 
 
 

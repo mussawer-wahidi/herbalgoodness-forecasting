@@ -158,7 +158,7 @@ class GoogleSheetsConnector:
         try:
             print("Extracting product data from Google Sheets...")
             spreadsheet = self.gc.open_by_url(spreadsheet_url)
-            worksheet = spreadsheet.worksheet("1. Finished_Products")
+            worksheet = spreadsheet.worksheet("All Labeled Products")
 
             # Get all values to handle duplicate headers manually
             all_values = worksheet.get_all_values()
@@ -5308,6 +5308,7 @@ st.markdown("""
 """, unsafe_allow_html=True)  # <-- closing triple quotes AND parenthesis
 
 st.markdown('</div>', unsafe_allow_html=True)
+
 
 
 

@@ -3658,7 +3658,7 @@ def main():
         GOOGLE_SHEET_URL = "https://docs.google.com/spreadsheets/d/1ZYugDxWgvmwye_zYYZJ4lgnY8hwZYKljEjGOKT2Cens/edit?gid=2126602512#gid=2126602512"
         WEEKLY_SALES_URL = "https://docs.google.com/spreadsheets/d/16WVvbzcdzeeI4ZL4OFou_7DVM7UAHWUvXmpYiHzOUw0/edit?gid=1908752665#gid=1908752665"
         #INVENTORY_URL = "https://docs.google.com/spreadsheets/d/1_j7eJi52Kq8RHvK6e0RPBRK8wJ0DXUOMj7Z7yZHlZzM/edit?gid=404505721#gid=404505721"
-        CURRENT_INVENTORY_URL = "https://docs.google.com/spreadsheets/d/1_j7eJi52Kq8RHvK6e0RPBRK8wJ0DXUOMj7Z7yZHlZzM/edit?gid=404505721#gid=404505721"
+        CURRENT_INVENTORY_URL = "https://docs.google.com/spreadsheets/d/1mOSf1sO6MndPfsGJde988pWdAEORLixBjgNj5tCSVwE/edit?gid=0#gid=0"
 
         USE_GOOGLE_SHEETS = True
 
@@ -5454,6 +5454,7 @@ st.markdown("""
 """, unsafe_allow_html=True)  # <-- closing triple quotes AND parenthesis
 
 st.markdown('</div>', unsafe_allow_html=True)
+
 
 
 

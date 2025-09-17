@@ -165,8 +165,14 @@ class GoogleSheetsConnector:
             print("📦 Extracting inventory data from Google Sheets...")
             spreadsheet = self.gc.open_by_url(spreadsheet_url)
             
-            # Define worksheets to search through
-            worksheet_names = ['Teas', 'Capsules', 'Liquids']
+            # Get all available worksheets first
+            all_worksheets = spreadsheet.worksheets()
+            print(f"📋 Available worksheets:")
+            for ws in all_worksheets:
+                print(f"   - '{ws.title}'")
+            
+            # Define worksheets to search through (keywords to match)
+            worksheet_keywords = ['Teas', 'Capsules', 'Liquids']
             
             # Find column indices (C = index 2, R = index 17)
             sku_col = 2  # Column C
@@ -175,25 +181,36 @@ class GoogleSheetsConnector:
             inventory_data = {}
             skus_processed = 0
             
-            # Iterate through each worksheet
-            for worksheet_name in worksheet_names:
+            # Iterate through each worksheet keyword
+            for keyword in worksheet_keywords:
                 try:
-                    print(f"🔍 Searching in worksheet: {worksheet_name}")
+                    print(f"🔍 Searching for worksheet containing: {keyword}")
                     
                     # Try to find worksheet by name (case-insensitive partial match)
                     worksheet = None
-                    all_worksheets = spreadsheet.worksheets()
                     
                     for ws in all_worksheets:
-                        if worksheet_name.lower() in ws.title.lower():
+                        # More robust matching - check if keyword appears anywhere in title
+                        if keyword.lower() in ws.title.lower():
                             worksheet = ws
+                            print(f"   ✅ Found matching worksheet: '{ws.title}'")
                             break
                     
+                    # If not found with partial match, try exact match without emojis
                     if not worksheet:
-                        print(f"   ⚠️ Worksheet containing '{worksheet_name}' not found, skipping...")
+                        for ws in all_worksheets:
+                            # Remove emojis and extra spaces, then compare
+                            clean_title = ''.join(c for c in ws.title if c.isalnum() or c.isspace()).strip()
+                            if keyword.lower() == clean_title.lower() or keyword.lower() in clean_title.lower():
+                                worksheet = ws
+                                print(f"   ✅ Found matching worksheet (cleaned): '{ws.title}'")
+                                break
+                    
+                    if not worksheet:
+                        print(f"   ⚠️ Worksheet containing '{keyword}' not found, skipping...")
                         continue
                     
-                    print(f"   📄 Found worksheet: '{worksheet.title}'")
+                    print(f"   📄 Processing worksheet: '{worksheet.title}'")
                     
                     # Get all values from current worksheet
                     all_values = worksheet.get_all_values()
@@ -259,7 +276,7 @@ class GoogleSheetsConnector:
                     skus_processed += worksheet_skus_processed
                     
                 except Exception as e:
-                    print(f"   ❌ Error processing worksheet '{worksheet_name}': {e}")
+                    print(f"   ❌ Error processing worksheet '{keyword}': {e}")
                     continue
             
             print(f"✅ Extracted inventory for {skus_processed} SKUs across all worksheets")
@@ -5437,6 +5454,7 @@ st.markdown("""
 """, unsafe_allow_html=True)  # <-- closing triple quotes AND parenthesis
 
 st.markdown('</div>', unsafe_allow_html=True)
+
 
 
 

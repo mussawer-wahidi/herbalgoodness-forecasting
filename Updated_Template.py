@@ -58,85 +58,211 @@ class GoogleSheetsConnector:
             print(f"Error connecting to Google Sheets: {e}")
             raise
 
+    # def get_inventory_data(self, spreadsheet_url):
+    #     """
+    #     Extract inventory data from Google Sheets
+    #     Column B: SKU
+    #     Column AK: Inventory total
+    #     """
+    #     try:
+    #         print("📦 Extracting inventory data from Google Sheets...")
+    #         spreadsheet = self.gc.open_by_url(spreadsheet_url)
+            
+    #         # Get the first worksheet (or specify the worksheet name if needed)
+    #         worksheet = spreadsheet.get_worksheet(0)  # First sheet
+            
+    #         # Get all values
+    #         all_values = worksheet.get_all_values()
+            
+    #         if not all_values:
+    #             print("❌ No data found in inventory sheet")
+    #             return {}
+            
+    #         # Find column indices (B = index 1, AK = index 36)
+    #         sku_col = 1  # Column B
+    #         inventory_col = 36  # Column AK
+            
+    #         inventory_data = {}
+    #         skus_processed = 0
+            
+    #         # Process data rows (assuming row 1 is header)
+    #         for row_idx, row in enumerate(all_values[1:], start=2):
+    #             try:
+    #                 # Ensure row has enough columns
+    #                 if len(row) <= max(sku_col, inventory_col):
+    #                     continue
+                    
+    #                 # Extract SKU
+    #                 raw_sku = str(row[sku_col]).strip()
+    #                 if not raw_sku or raw_sku.lower() in ['', 'none', 'null', 'n/a']:
+    #                     continue
+                    
+    #                 # Clean SKU - multiple formats
+    #                 cleaned_skus = []
+                    
+    #                 # Original format
+    #                 cleaned_skus.append(raw_sku)
+                    
+    #                 # Remove leading zeros
+    #                 cleaned_skus.append(raw_sku.lstrip('0'))
+                    
+    #                 # Add leading zeros if short UPC
+    #                 if raw_sku.isdigit() and len(raw_sku) < 12:
+    #                     cleaned_skus.append(raw_sku.zfill(12))
+                    
+    #                 # Remove non-alphanumeric
+    #                 alphanumeric_only = ''.join(c for c in raw_sku if c.isalnum())
+    #                 if alphanumeric_only:
+    #                     cleaned_skus.append(alphanumeric_only)
+                    
+    #                 # Extract inventory quantity
+    #                 inventory_value = row[inventory_col] if inventory_col < len(row) else '0'
+                    
+    #                 try:
+    #                     inventory_qty = float(str(inventory_value).replace(',', '').strip())
+    #                     if inventory_qty < 0:
+    #                         inventory_qty = 0
+    #                 except:
+    #                     inventory_qty = 0
+                    
+    #                 # Store all SKU variations with the same inventory value
+    #                 for sku_variant in cleaned_skus:
+    #                     if sku_variant:
+    #                         inventory_data[sku_variant] = inventory_qty
+                            
+    #                 skus_processed += 1
+                    
+    #             except Exception as e:
+    #                 print(f"   Warning: Error processing row {row_idx}: {e}")
+    #                 continue
+            
+    #         print(f"✅ Extracted inventory for {skus_processed} SKUs")
+    #         print(f"   Total inventory records (including variants): {len(inventory_data)}")
+            
+    #         # Show sample data
+    #         if inventory_data:
+    #             print(f"\n🔍 SAMPLE INVENTORY DATA:")
+    #             sample_items = list(inventory_data.items())[:5]
+    #             for sku, qty in sample_items:
+    #                 print(f"   SKU: '{sku}' -> Inventory: {qty}")
+            
+    #         return inventory_data
+            
+    #     except Exception as e:
+    #         print(f"❌ Error extracting inventory data: {e}")
+    #         import traceback
+    #         traceback.print_exc()
+    #         return {}
+
     def get_inventory_data(self, spreadsheet_url):
         """
         Extract inventory data from Google Sheets
-        Column B: SKU
-        Column AK: Inventory total
+        Column C: SKU
+        Column R: Inventory total
+        Searches through Teas, Capsules, and Liquids worksheets
         """
         try:
             print("📦 Extracting inventory data from Google Sheets...")
             spreadsheet = self.gc.open_by_url(spreadsheet_url)
             
-            # Get the first worksheet (or specify the worksheet name if needed)
-            worksheet = spreadsheet.get_worksheet(0)  # First sheet
+            # Define worksheets to search through
+            worksheet_names = ['Teas', 'Capsules', 'Liquids']
             
-            # Get all values
-            all_values = worksheet.get_all_values()
-            
-            if not all_values:
-                print("❌ No data found in inventory sheet")
-                return {}
-            
-            # Find column indices (B = index 1, AK = index 36)
-            sku_col = 1  # Column B
-            inventory_col = 36  # Column AK
+            # Find column indices (C = index 2, R = index 17)
+            sku_col = 2  # Column C
+            inventory_col = 17  # Column R
             
             inventory_data = {}
             skus_processed = 0
             
-            # Process data rows (assuming row 1 is header)
-            for row_idx, row in enumerate(all_values[1:], start=2):
+            # Iterate through each worksheet
+            for worksheet_name in worksheet_names:
                 try:
-                    # Ensure row has enough columns
-                    if len(row) <= max(sku_col, inventory_col):
+                    print(f"🔍 Searching in worksheet: {worksheet_name}")
+                    
+                    # Try to find worksheet by name (case-insensitive partial match)
+                    worksheet = None
+                    all_worksheets = spreadsheet.worksheets()
+                    
+                    for ws in all_worksheets:
+                        if worksheet_name.lower() in ws.title.lower():
+                            worksheet = ws
+                            break
+                    
+                    if not worksheet:
+                        print(f"   ⚠️ Worksheet containing '{worksheet_name}' not found, skipping...")
                         continue
                     
-                    # Extract SKU
-                    raw_sku = str(row[sku_col]).strip()
-                    if not raw_sku or raw_sku.lower() in ['', 'none', 'null', 'n/a']:
+                    print(f"   📄 Found worksheet: '{worksheet.title}'")
+                    
+                    # Get all values from current worksheet
+                    all_values = worksheet.get_all_values()
+                    
+                    if not all_values:
+                        print(f"   ❌ No data found in {worksheet.title}")
                         continue
                     
-                    # Clean SKU - multiple formats
-                    cleaned_skus = []
+                    worksheet_skus_processed = 0
                     
-                    # Original format
-                    cleaned_skus.append(raw_sku)
-                    
-                    # Remove leading zeros
-                    cleaned_skus.append(raw_sku.lstrip('0'))
-                    
-                    # Add leading zeros if short UPC
-                    if raw_sku.isdigit() and len(raw_sku) < 12:
-                        cleaned_skus.append(raw_sku.zfill(12))
-                    
-                    # Remove non-alphanumeric
-                    alphanumeric_only = ''.join(c for c in raw_sku if c.isalnum())
-                    if alphanumeric_only:
-                        cleaned_skus.append(alphanumeric_only)
-                    
-                    # Extract inventory quantity
-                    inventory_value = row[inventory_col] if inventory_col < len(row) else '0'
-                    
-                    try:
-                        inventory_qty = float(str(inventory_value).replace(',', '').strip())
-                        if inventory_qty < 0:
-                            inventory_qty = 0
-                    except:
-                        inventory_qty = 0
-                    
-                    # Store all SKU variations with the same inventory value
-                    for sku_variant in cleaned_skus:
-                        if sku_variant:
-                            inventory_data[sku_variant] = inventory_qty
+                    # Process data rows (assuming row 1 is header)
+                    for row_idx, row in enumerate(all_values[1:], start=2):
+                        try:
+                            # Ensure row has enough columns
+                            if len(row) <= max(sku_col, inventory_col):
+                                continue
                             
-                    skus_processed += 1
+                            # Extract SKU from column C
+                            raw_sku = str(row[sku_col]).strip()
+                            if not raw_sku or raw_sku.lower() in ['', 'none', 'null', 'n/a']:
+                                continue
+                            
+                            # Clean SKU - multiple formats
+                            cleaned_skus = []
+                            
+                            # Original format
+                            cleaned_skus.append(raw_sku)
+                            
+                            # Remove leading zeros
+                            cleaned_skus.append(raw_sku.lstrip('0'))
+                            
+                            # Add leading zeros if short UPC
+                            if raw_sku.isdigit() and len(raw_sku) < 12:
+                                cleaned_skus.append(raw_sku.zfill(12))
+                            
+                            # Remove non-alphanumeric
+                            alphanumeric_only = ''.join(c for c in raw_sku if c.isalnum())
+                            if alphanumeric_only:
+                                cleaned_skus.append(alphanumeric_only)
+                            
+                            # Extract inventory quantity from column R
+                            inventory_value = row[inventory_col] if inventory_col < len(row) else '0'
+                            
+                            try:
+                                inventory_qty = float(str(inventory_value).replace(',', '').strip())
+                                if inventory_qty < 0:
+                                    inventory_qty = 0
+                            except:
+                                inventory_qty = 0
+                            
+                            # Store all SKU variations with the same inventory value
+                            for sku_variant in cleaned_skus:
+                                if sku_variant:
+                                    inventory_data[sku_variant] = inventory_qty
+                                    
+                            worksheet_skus_processed += 1
+                            
+                        except Exception as e:
+                            print(f"   Warning: Error processing row {row_idx} in {worksheet.title}: {e}")
+                            continue
+                    
+                    print(f"   ✅ Processed {worksheet_skus_processed} SKUs from {worksheet.title}")
+                    skus_processed += worksheet_skus_processed
                     
                 except Exception as e:
-                    print(f"   Warning: Error processing row {row_idx}: {e}")
+                    print(f"   ❌ Error processing worksheet '{worksheet_name}': {e}")
                     continue
             
-            print(f"✅ Extracted inventory for {skus_processed} SKUs")
+            print(f"✅ Extracted inventory for {skus_processed} SKUs across all worksheets")
             print(f"   Total inventory records (including variants): {len(inventory_data)}")
             
             # Show sample data
@@ -3514,7 +3640,9 @@ def main():
 
         GOOGLE_SHEET_URL = "https://docs.google.com/spreadsheets/d/1ZYugDxWgvmwye_zYYZJ4lgnY8hwZYKljEjGOKT2Cens/edit?gid=2126602512#gid=2126602512"
         WEEKLY_SALES_URL = "https://docs.google.com/spreadsheets/d/16WVvbzcdzeeI4ZL4OFou_7DVM7UAHWUvXmpYiHzOUw0/edit?gid=1908752665#gid=1908752665"
-        INVENTORY_URL = "https://docs.google.com/spreadsheets/d/1_j7eJi52Kq8RHvK6e0RPBRK8wJ0DXUOMj7Z7yZHlZzM/edit?gid=404505721#gid=404505721"
+        #INVENTORY_URL = "https://docs.google.com/spreadsheets/d/1_j7eJi52Kq8RHvK6e0RPBRK8wJ0DXUOMj7Z7yZHlZzM/edit?gid=404505721#gid=404505721"
+        CURRENT_INVENTORY_URL = "https://docs.google.com/spreadsheets/d/1_j7eJi52Kq8RHvK6e0RPBRK8wJ0DXUOMj7Z7yZHlZzM/edit?gid=404505721#gid=404505721"
+
         USE_GOOGLE_SHEETS = True
 
         print("Loading data files...")
@@ -3561,7 +3689,8 @@ def main():
         
                 # Now try getting inventory
                 print(f"\n📦 Loading inventory data from Google Sheets...")
-                inventory = gs_connector.get_inventory_data(INVENTORY_URL)
+              #  inventory = gs_connector.get_inventory_data(INVENTORY_URL)
+                inventory = gs_connector.get_inventory_data(CURRENT_INVENTORY_URL)
                 print(f"   Current inventory from Google Sheets: {len(inventory)} SKUs")
 
                 # Get product info and lead times
@@ -5308,6 +5437,7 @@ st.markdown("""
 """, unsafe_allow_html=True)  # <-- closing triple quotes AND parenthesis
 
 st.markdown('</div>', unsafe_allow_html=True)
+
 
 
 

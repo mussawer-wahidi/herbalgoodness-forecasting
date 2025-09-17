@@ -165,14 +165,8 @@ class GoogleSheetsConnector:
             print("📦 Extracting inventory data from Google Sheets...")
             spreadsheet = self.gc.open_by_url(spreadsheet_url)
             
-            # Get all available worksheets first
-            all_worksheets = spreadsheet.worksheets()
-            print(f"📋 Available worksheets:")
-            for ws in all_worksheets:
-                print(f"   - '{ws.title}'")
-            
-            # Define worksheets to search through (keywords to match)
-            worksheet_keywords = ['Teas', 'Capsules', 'Liquids']
+            # Define worksheets to search through
+            worksheet_names = ['Teas', 'Capsules', 'Liquids']
             
             # Find column indices (C = index 2, R = index 17)
             sku_col = 2  # Column C
@@ -181,36 +175,25 @@ class GoogleSheetsConnector:
             inventory_data = {}
             skus_processed = 0
             
-            # Iterate through each worksheet keyword
-            for keyword in worksheet_keywords:
+            # Iterate through each worksheet
+            for worksheet_name in worksheet_names:
                 try:
-                    print(f"🔍 Searching for worksheet containing: {keyword}")
+                    print(f"🔍 Searching in worksheet: {worksheet_name}")
                     
                     # Try to find worksheet by name (case-insensitive partial match)
                     worksheet = None
+                    all_worksheets = spreadsheet.worksheets()
                     
                     for ws in all_worksheets:
-                        # More robust matching - check if keyword appears anywhere in title
-                        if keyword.lower() in ws.title.lower():
+                        if worksheet_name.lower() in ws.title.lower():
                             worksheet = ws
-                            print(f"   ✅ Found matching worksheet: '{ws.title}'")
                             break
                     
-                    # If not found with partial match, try exact match without emojis
                     if not worksheet:
-                        for ws in all_worksheets:
-                            # Remove emojis and extra spaces, then compare
-                            clean_title = ''.join(c for c in ws.title if c.isalnum() or c.isspace()).strip()
-                            if keyword.lower() == clean_title.lower() or keyword.lower() in clean_title.lower():
-                                worksheet = ws
-                                print(f"   ✅ Found matching worksheet (cleaned): '{ws.title}'")
-                                break
-                    
-                    if not worksheet:
-                        print(f"   ⚠️ Worksheet containing '{keyword}' not found, skipping...")
+                        print(f"   ⚠️ Worksheet containing '{worksheet_name}' not found, skipping...")
                         continue
                     
-                    print(f"   📄 Processing worksheet: '{worksheet.title}'")
+                    print(f"   📄 Found worksheet: '{worksheet.title}'")
                     
                     # Get all values from current worksheet
                     all_values = worksheet.get_all_values()
@@ -276,7 +259,7 @@ class GoogleSheetsConnector:
                     skus_processed += worksheet_skus_processed
                     
                 except Exception as e:
-                    print(f"   ❌ Error processing worksheet '{keyword}': {e}")
+                    print(f"   ❌ Error processing worksheet '{worksheet_name}': {e}")
                     continue
             
             print(f"✅ Extracted inventory for {skus_processed} SKUs across all worksheets")
@@ -3658,7 +3641,7 @@ def main():
         GOOGLE_SHEET_URL = "https://docs.google.com/spreadsheets/d/1ZYugDxWgvmwye_zYYZJ4lgnY8hwZYKljEjGOKT2Cens/edit?gid=2126602512#gid=2126602512"
         WEEKLY_SALES_URL = "https://docs.google.com/spreadsheets/d/16WVvbzcdzeeI4ZL4OFou_7DVM7UAHWUvXmpYiHzOUw0/edit?gid=1908752665#gid=1908752665"
         #INVENTORY_URL = "https://docs.google.com/spreadsheets/d/1_j7eJi52Kq8RHvK6e0RPBRK8wJ0DXUOMj7Z7yZHlZzM/edit?gid=404505721#gid=404505721"
-        CURRENT_INVENTORY_URL = "https://docs.google.com/spreadsheets/d/1mOSf1sO6MndPfsGJde988pWdAEORLixBjgNj5tCSVwE/edit?gid=0#gid=0"
+        INVENTORY_URL = "https://docs.google.com/spreadsheets/d/1mOSf1sO6MndPfsGJde988pWdAEORLixBjgNj5tCSVwE/edit?gid=0#gid=0"
 
         USE_GOOGLE_SHEETS = True
 
@@ -3706,8 +3689,7 @@ def main():
         
                 # Now try getting inventory
                 print(f"\n📦 Loading inventory data from Google Sheets...")
-              #  inventory = gs_connector.get_inventory_data(INVENTORY_URL)
-                inventory = gs_connector.get_inventory_data(CURRENT_INVENTORY_URL)
+                inventory = gs_connector.get_inventory_data(INVENTORY_URL)
                 print(f"   Current inventory from Google Sheets: {len(inventory)} SKUs")
 
                 # Get product info and lead times
@@ -5454,6 +5436,7 @@ st.markdown("""
 """, unsafe_allow_html=True)  # <-- closing triple quotes AND parenthesis
 
 st.markdown('</div>', unsafe_allow_html=True)
+
 
 
 

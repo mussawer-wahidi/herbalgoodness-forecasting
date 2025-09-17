@@ -165,12 +165,21 @@ class GoogleSheetsConnector:
             print("📦 Extracting inventory data from Google Sheets...")
             spreadsheet = self.gc.open_by_url(spreadsheet_url)
             
+            # Get all available worksheets first for debugging
+            all_worksheets = spreadsheet.worksheets()
+            print(f"📋 Available worksheets:")
+            for ws in all_worksheets:
+                print(f"   - '{ws.title}'")
+            
             # Define worksheets to search through
             worksheet_names = ['Teas', 'Capsules', 'Liquids']
             
             # Find column indices (C = index 2, R = index 17)
-            sku_col = 2  # Column C
-            inventory_col = 17  # Column R
+            sku_col = 2  # Column C (0-based indexing)
+            inventory_col = 17  # Column R (0-based indexing)
+            
+            print(f"🔍 Looking for SKUs in column {chr(67)} (index {sku_col})")
+            print(f"🔍 Looking for inventory in column {chr(82)} (index {inventory_col})")
             
             inventory_data = {}
             skus_processed = 0
@@ -178,11 +187,10 @@ class GoogleSheetsConnector:
             # Iterate through each worksheet
             for worksheet_name in worksheet_names:
                 try:
-                    print(f"🔍 Searching in worksheet: {worksheet_name}")
+                    print(f"\n🔍 Searching in worksheet: {worksheet_name}")
                     
                     # Try to find worksheet by name (case-insensitive partial match)
                     worksheet = None
-                    all_worksheets = spreadsheet.worksheets()
                     
                     for ws in all_worksheets:
                         if worksheet_name.lower() in ws.title.lower():
@@ -202,7 +210,20 @@ class GoogleSheetsConnector:
                         print(f"   ❌ No data found in {worksheet.title}")
                         continue
                     
+                    # Debug: Show header row to verify column positions
+                    if len(all_values) > 0:
+                        header_row = all_values[0]
+                        print(f"   📊 Header row length: {len(header_row)} columns")
+                        if len(header_row) > sku_col:
+                            print(f"   📊 Column C header: '{header_row[sku_col]}'")
+                        if len(header_row) > inventory_col:
+                            print(f"   📊 Column R header: '{header_row[inventory_col]}'")
+                        else:
+                            print(f"   ⚠️ Column R (index {inventory_col}) not found! Sheet only has {len(header_row)} columns")
+                            continue
+                    
                     worksheet_skus_processed = 0
+                    debug_count = 0
                     
                     # Process data rows (assuming row 1 is header)
                     for row_idx, row in enumerate(all_values[1:], start=2):
@@ -216,6 +237,29 @@ class GoogleSheetsConnector:
                             if not raw_sku or raw_sku.lower() in ['', 'none', 'null', 'n/a']:
                                 continue
                             
+                            # Extract inventory quantity from column R
+                            inventory_value = row[inventory_col] if inventory_col < len(row) else '0'
+                            
+                            # Debug: Show first few entries
+                            if debug_count < 3:
+                                print(f"   🔍 Row {row_idx}: SKU='{raw_sku}', Inventory='{inventory_value}'")
+                                debug_count += 1
+                            
+                            try:
+                                # Clean the inventory value more thoroughly
+                                inventory_str = str(inventory_value).replace(',', '').replace('$', '').strip()
+                                
+                                # Handle empty or non-numeric values
+                                if not inventory_str or inventory_str.lower() in ['', 'none', 'null', 'n/a', '-']:
+                                    inventory_qty = 0
+                                else:
+                                    inventory_qty = float(inventory_str)
+                                    if inventory_qty < 0:
+                                        inventory_qty = 0
+                            except ValueError:
+                                print(f"   ⚠️ Could not parse inventory value '{inventory_value}' for SKU '{raw_sku}' at row {row_idx}")
+                                inventory_qty = 0
+                            
                             # Clean SKU - multiple formats
                             cleaned_skus = []
                             
@@ -223,7 +267,8 @@ class GoogleSheetsConnector:
                             cleaned_skus.append(raw_sku)
                             
                             # Remove leading zeros
-                            cleaned_skus.append(raw_sku.lstrip('0'))
+                            if raw_sku.lstrip('0'):  # Only add if not all zeros
+                                cleaned_skus.append(raw_sku.lstrip('0'))
                             
                             # Add leading zeros if short UPC
                             if raw_sku.isdigit() and len(raw_sku) < 12:
@@ -231,28 +276,22 @@ class GoogleSheetsConnector:
                             
                             # Remove non-alphanumeric
                             alphanumeric_only = ''.join(c for c in raw_sku if c.isalnum())
-                            if alphanumeric_only:
+                            if alphanumeric_only and alphanumeric_only != raw_sku:
                                 cleaned_skus.append(alphanumeric_only)
                             
-                            # Extract inventory quantity from column R
-                            inventory_value = row[inventory_col] if inventory_col < len(row) else '0'
-                            
-                            try:
-                                inventory_qty = float(str(inventory_value).replace(',', '').strip())
-                                if inventory_qty < 0:
-                                    inventory_qty = 0
-                            except:
-                                inventory_qty = 0
-                            
                             # Store all SKU variations with the same inventory value
+                            # BUT check for duplicates and warn if inventory values differ
                             for sku_variant in cleaned_skus:
                                 if sku_variant:
+                                    if sku_variant in inventory_data:
+                                        if inventory_data[sku_variant] != inventory_qty:
+                                            print(f"   ⚠️ SKU '{sku_variant}' found multiple times with different inventory: {inventory_data[sku_variant]} vs {inventory_qty}")
                                     inventory_data[sku_variant] = inventory_qty
                                     
                             worksheet_skus_processed += 1
                             
                         except Exception as e:
-                            print(f"   Warning: Error processing row {row_idx} in {worksheet.title}: {e}")
+                            print(f"   ❌ Error processing row {row_idx} in {worksheet.title}: {e}")
                             continue
                     
                     print(f"   ✅ Processed {worksheet_skus_processed} SKUs from {worksheet.title}")
@@ -260,15 +299,17 @@ class GoogleSheetsConnector:
                     
                 except Exception as e:
                     print(f"   ❌ Error processing worksheet '{worksheet_name}': {e}")
+                    import traceback
+                    traceback.print_exc()
                     continue
             
-            print(f"✅ Extracted inventory for {skus_processed} SKUs across all worksheets")
+            print(f"\n✅ Extracted inventory for {skus_processed} SKUs across all worksheets")
             print(f"   Total inventory records (including variants): {len(inventory_data)}")
             
-            # Show sample data
+            # Show sample data with more details
             if inventory_data:
                 print(f"\n🔍 SAMPLE INVENTORY DATA:")
-                sample_items = list(inventory_data.items())[:5]
+                sample_items = list(inventory_data.items())[:10]  # Show more samples
                 for sku, qty in sample_items:
                     print(f"   SKU: '{sku}' -> Inventory: {qty}")
             
@@ -5436,6 +5477,7 @@ st.markdown("""
 """, unsafe_allow_html=True)  # <-- closing triple quotes AND parenthesis
 
 st.markdown('</div>', unsafe_allow_html=True)
+
 
 
 

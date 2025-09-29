@@ -176,7 +176,7 @@ class GoogleSheetsConnector:
             
             # Find column indices (C = index 2, R = index 17)
             sku_col = 2  # Column C (0-based indexing)
-            inventory_col = 17  # Column R (0-based indexing)
+            inventory_col = 19  # Column R (0-based indexing)
             
             print(f"🔍 Looking for SKUs in column {chr(67)} (index {sku_col})")
             print(f"🔍 Looking for inventory in column {chr(82)} (index {inventory_col})")
@@ -5477,6 +5477,7 @@ st.markdown("""
 """, unsafe_allow_html=True)  # <-- closing triple quotes AND parenthesis
 
 st.markdown('</div>', unsafe_allow_html=True)
+
 
 
 

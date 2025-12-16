@@ -3412,14 +3412,16 @@ class EnhancedForecastingModel:
 def run_forecast_bom_analysis(gc_client=None):
     """
     Encapsulated Forecast BOM Analysis function.
-    Reuses existing Google Sheets authentication when available.
+    Complete Multi-Level BOM Explosion System with all original logic preserved.
     Returns: (excel_buffer, filename) tuple or (None, None) on failure
     """
     from collections import defaultdict
     from typing import Dict, List, Tuple, Set, Optional
     from io import BytesIO
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
     
-    # BOM-specific configuration (does not override main app CONFIG)
+    # BOM-specific configuration
     BOM_CONFIG = {
         # BOM Data Sheet
         'SPREADSHEET_URL': 'https://docs.google.com/spreadsheets/d/1ddH2428mSdWJSyDRH72oUGDVsLQjNuAOQ24k-lOnf-I/edit?gid=1102477322#gid=1102477322',
@@ -3459,25 +3461,36 @@ def run_forecast_bom_analysis(gc_client=None):
         'SAFETY_STOCK_PCT': 0.10,
     }
 
-    # --- Helper Functions (BOM-specific) ---
+    # --------------------------------------------------------------------------
+    # HELPER FUNCTIONS
+    # --------------------------------------------------------------------------
+
     def column_letter_to_index(col_letter: str) -> int:
+        """Convert Excel-style column letter to 1-based column index."""
         col_letter = col_letter.upper()
         result = 0
         for char in col_letter:
             result = result * 26 + (ord(char) - ord('A') + 1)
         return result
 
-    def fetch_bom_from_sheet(client, sheet_url, worksheet_name):
+    # --------------------------------------------------------------------------
+    # BOM DATA FETCHING
+    # --------------------------------------------------------------------------
+
+    def fetch_bom_from_sheet(client, sheet_url: str, worksheet_name: str) -> pd.DataFrame:
         print("\n📥 Fetching BOM data from Google Sheets...")
         try:
             sheet = client.open_by_url(sheet_url)
             ws = sheet.worksheet(worksheet_name)
         except gspread.exceptions.SpreadsheetNotFound:
-            raise Exception(f"Spreadsheet not found: {sheet_url}")
+            raise Exception(f"Spreadsheet not found / not shared – check URL: {sheet_url}")
         except gspread.exceptions.WorksheetNotFound:
             raise Exception(f"Worksheet '{worksheet_name}' not found.")
 
+        # 1. raw values
         raw_vals = ws.get_all_values()
+
+        # 2. build clean header
         header_row = raw_vals[0]
         clean_hdr = []
         seen = set()
@@ -3493,8 +3506,10 @@ def run_forecast_bom_analysis(gc_client=None):
             seen.add(h)
             clean_hdr.append(h)
 
+        # 3. dataframe
         df = pd.DataFrame(raw_vals[1:], columns=clean_hdr)
 
+        # 4. column mapping
         column_mapping = {
             'Parent Item Code': 'parent_item_code',
             'Parent SKU': 'parent_sku',
@@ -3511,23 +3526,37 @@ def run_forecast_bom_analysis(gc_client=None):
         }
         df = df.rename(columns={k: v for k, v in column_mapping.items() if k in df.columns})
 
+        # 5. numeric clean-up
         numeric_cols = ['quantity_required', 'wastage_pct', 'net_requirement', 'unit_cost', 'total_cost']
         for col in numeric_cols:
             if col in df.columns:
-                df[col] = (df[col].astype(str).str.replace(r'[$,%]', '', regex=True)
-                          .str.replace(',', '').pipe(pd.to_numeric, errors='coerce').fillna(0))
+                df[col] = (
+                    df[col]
+                    .astype(str)
+                    .str.replace(r'[$,%]', '', regex=True)
+                    .str.replace(',', '')
+                    .pipe(pd.to_numeric, errors='coerce')
+                    .fillna(0)
+                )
 
+        # 6. final tidy-up
         df = df.dropna(subset=['parent_item_code', 'component_item_code'], how='all')
         df['parent_sku'] = df['parent_sku'].fillna('Unknown SKU')
         df['component_description'] = df['component_description'].fillna('Unknown Component')
         df['component_type'] = df['component_type'].fillna('Other')
         df['uom'] = df['uom'].fillna('EA')
 
-        print(f"✅ Cleaned BOM data: {len(df)} valid entries")
+        print(f"✅ Cleaned data: {len(df)} valid BOM entries")
         return df
 
-    def fetch_procurement_parameters(client, sheet_url, worksheet_name, component_col, lead_time_col, moq_col, eoq_col):
-        print("\n📦 Fetching procurement parameters...")
+    # --------------------------------------------------------------------------
+    # PROCUREMENT & INVENTORY DATA FETCHING
+    # --------------------------------------------------------------------------
+
+    def fetch_procurement_parameters(client, sheet_url: str, worksheet_name: str,
+                                    component_col: str, lead_time_col: str, 
+                                    moq_col: str, eoq_col: str) -> pd.DataFrame:
+        print("\n📦 Fetching procurement parameters (Lead Time, MOQ, EOQ) from Google Sheets...")
         try:
             sheet = client.open_by_url(sheet_url)
             worksheet = sheet.worksheet(worksheet_name)
@@ -3541,6 +3570,7 @@ def run_forecast_bom_analysis(gc_client=None):
         first_row = raw_data[0]
         non_empty_first = sum(1 for c in first_row[:8] if c.strip() != "")
         if non_empty_first == 0:
+            print("⚠️ First row blank — using row 2 as header.")
             header = raw_data[1]
             rows = raw_data[2:]
         else:
@@ -3554,6 +3584,7 @@ def run_forecast_bom_analysis(gc_client=None):
         component_column = next((c for c in component_col_names if c in df.columns), None)
         if not component_column:
             component_column = df.columns[0]
+            print(f"⚠️ Component column not found — using first column: '{component_column}'")
 
         column_mapping = {
             component_column: 'component_item_code',
@@ -3572,18 +3603,22 @@ def run_forecast_bom_analysis(gc_client=None):
         for col in ['lead_time_days', 'moq', 'eoq']:
             if col not in df.columns:
                 df[col] = 0
+                print(f"⚠️ Column '{col}' not found — initialized with 0")
             else:
                 df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
 
         df['component_item_code'] = df['component_item_code'].astype(str).str.strip().str.upper()
-        df = df[df['component_item_code'].notna() & (df['component_item_code'] != "") & (df['component_item_code'] != "nan")]
+        df = df[df['component_item_code'].notna()]
+        df = df[df['component_item_code'] != ""]
+        df = df[df['component_item_code'] != "nan"]
         df = df[['component_item_code', 'lead_time_days', 'moq', 'eoq']]
 
         print(f"✅ Cleaned procurement data: {len(df)} valid entries")
         return df
 
-    def fetch_inventory_data(client, sheet_url, worksheet_name, component_col, inventory_col):
-        print("\n📊 Fetching inventory data...")
+    def fetch_inventory_data(client, sheet_url: str, worksheet_name: str,
+                            component_col: str, inventory_col: str) -> pd.DataFrame:
+        print("\n📊 Fetching inventory data from Google Sheets...")
         try:
             sheet = client.open_by_url(sheet_url)
             worksheet = sheet.worksheet(worksheet_name)
@@ -3597,6 +3632,7 @@ def run_forecast_bom_analysis(gc_client=None):
         first_row = raw_data[0]
         non_empty_first = sum(1 for c in first_row[:8] if c.strip() != "")
         if non_empty_first == 0:
+            print("⚠️ First row blank — using row 2 as header.")
             header = raw_data[1]
             rows = raw_data[2:]
         else:
@@ -3605,10 +3641,12 @@ def run_forecast_bom_analysis(gc_client=None):
 
         df = pd.DataFrame(rows, columns=header)
 
-        component_col_names = ['Component Item Code', 'Component_Item_Code', 'Item Code', 'Component Code', 'SKU', 'Item_Code']
+        component_col_names = ['Component Item Code', 'Component_Item_Code',
+                              'Item Code', 'Component Code', 'SKU', 'Item_Code']
         component_column = next((c for c in component_col_names if c in df.columns), None)
         if not component_column:
             component_column = df.columns[0]
+            print(f"⚠️ Component column not found — using first column: '{component_column}'")
 
         column_mapping = {
             component_column: 'component_item_code',
@@ -3626,18 +3664,36 @@ def run_forecast_bom_analysis(gc_client=None):
             df['component_item_code'] = df.iloc[:, 0]
         if 'current_inventory' not in df.columns:
             df['current_inventory'] = 0
+            print("⚠️ Inventory column not found — initialized with 0")
 
-        df['current_inventory'] = (df['current_inventory'].astype(str).str.replace(',', '')
-                                   .pipe(pd.to_numeric, errors='coerce').fillna(0))
+        df['current_inventory'] = (
+            df['current_inventory']
+            .astype(str)
+            .str.replace(',', '')
+            .pipe(pd.to_numeric, errors='coerce')
+            .fillna(0)
+        )
+
         df['component_item_code'] = df['component_item_code'].astype(str).str.strip()
-        df = df[df['component_item_code'].notna() & (df['component_item_code'] != "") & (df['component_item_code'] != "nan")]
+        df = df[df['component_item_code'].notna()]
+        df = df[df['component_item_code'] != ""]
+        df = df[df['component_item_code'] != "nan"]
         df = df[['component_item_code', 'current_inventory']]
 
         print(f"✅ Cleaned inventory data: {len(df)} valid entries")
+        if len(df) > 0:
+            print("\n📋 Sample Inventory Data:")
+            for _, row in df.head(5).iterrows():
+                print(f"   {row['component_item_code']}: {row['current_inventory']}")
         return df
 
-    def fetch_sku_upc_mapping(client, sheet_url, worksheet_name, item_code_col, upc_col):
-        print("\n📇 Fetching SKU → UPC mapping...")
+    # --------------------------------------------------------------------------
+    # FORECAST LOOKUP HELPERS
+    # --------------------------------------------------------------------------
+
+    def fetch_sku_upc_mapping(client, sheet_url: str, worksheet_name: str,
+                             item_code_col: str, upc_col: str) -> Dict[str, str]:
+        print("\n📇 Fetching SKU → UPC mapping from reference sheet...")
         try:
             sheet = client.open_by_url(sheet_url)
             worksheet = sheet.worksheet(worksheet_name)
@@ -3658,8 +3714,9 @@ def run_forecast_bom_analysis(gc_client=None):
         print(f"✅ Mapped {len(mapping)} SKUs to UPCs")
         return mapping
 
-    def fetch_upc_forecast_data(client, sheet_url, worksheet_name, upc_col, forecast_cols):
-        print("\n📊 Fetching 6-month forecast data...")
+    def fetch_upc_forecast_data(client, sheet_url: str, worksheet_name: str,
+                               upc_col: str, forecast_cols: List[str]) -> Dict[str, float]:
+        print("\n📊 Fetching 6-month forecast data from forecast sheet...")
         try:
             sheet = client.open_by_url(sheet_url)
             worksheet = sheet.worksheet(worksheet_name)
@@ -3691,15 +3748,18 @@ def run_forecast_bom_analysis(gc_client=None):
         print(f"✅ Fetched forecasts for {len(mapping)} UPCs")
         return mapping
 
-    def fetch_forecast_demand_from_sheets(client, bom_df, config):
-        print("\n🔍 FORECAST LOOKUP - MULTI-SHEET INTEGRATION")
+    def fetch_forecast_demand_from_sheets(client, bom_df: pd.DataFrame, config: Dict):
+        print("\n" + "="*120)
+        print("🔍 FORECAST LOOKUP PROCESS - MULTI-SHEET INTEGRATION".center(120))
+        print("="*120)
+
         unique_skus = bom_df.groupby('parent_item_code').agg({'parent_sku': 'first'}).reset_index()
         print(f"\n📋 Found {len(unique_skus)} unique SKUs in BOM")
 
         sku_to_upc = fetch_sku_upc_mapping(client, config['SKU_REFERENCE_URL'], config['SKU_REFERENCE_WORKSHEET'],
                                           config['SKU_ITEM_CODE_COLUMN'], config['SKU_UPC_COLUMN'])
         upc_to_forecast = fetch_upc_forecast_data(client, config['FORECAST_URL'], config['FORECAST_WORKSHEET'],
-                                                  config['FORECAST_UPC_COLUMN'], config['FORECAST_MONTH_COLUMNS'])
+                                                 config['FORECAST_UPC_COLUMN'], config['FORECAST_MONTH_COLUMNS'])
 
         forecast_results = []
         skipped_skus = []
@@ -3720,14 +3780,22 @@ def run_forecast_bom_analysis(gc_client=None):
 
         forecast_df = pd.DataFrame(forecast_results)
         print(f"✅ Successfully linked {len(forecast_df)} SKUs with forecasts")
+        if skipped_skus:
+            print(f"⚠️  Skipped {len(skipped_skus)} SKUs")
         return forecast_df, skipped_skus
 
-    def build_bom_structure_from_sheet(bom_df):
+    # --------------------------------------------------------------------------
+    # BOM STRUCTURE & EXPLOSION
+    # --------------------------------------------------------------------------
+
+    def build_bom_structure_from_sheet(bom_df: pd.DataFrame) -> Dict:
         print("\n🔧 Building hierarchical BOM structure...")
         bom_structure = {}
         all_parents = set(bom_df['parent_item_code'].unique())
         all_components = set(bom_df['component_item_code'].unique())
         sub_assemblies = all_components & all_parents
+        if sub_assemblies:
+            print(f"✅ Detected {len(sub_assemblies)} sub-assemblies (multi-level BOM)")
 
         for parent_code in all_parents:
             parent_bom = bom_df[bom_df['parent_item_code'] == parent_code]
@@ -3736,19 +3804,26 @@ def run_forecast_bom_analysis(gc_client=None):
                 component_code = row['component_item_code']
                 level = 1 if component_code in sub_assemblies else 2
                 components.append((
-                    component_code, row['quantity_required'], row['component_description'],
-                    level, row['wastage_pct'], row['unit_cost'], row['uom']
+                    component_code,
+                    row['quantity_required'],
+                    row['component_description'],
+                    level,
+                    row['wastage_pct'],
+                    row['unit_cost'],
+                    row['uom']
                 ))
             bom_structure[parent_code] = components
         print(f"✅ Built BOM structure for {len(bom_structure)} parent items")
         return bom_structure
 
-    def explode_bom(parent_id, parent_qty, bom_structure, requirements, parent_chain, root_sku):
+    def explode_bom(parent_id: str, parent_qty: float, bom_structure: Dict, requirements: Dict,
+                   parent_chain: Set[str], root_sku: str) -> None:
         if parent_id not in bom_structure:
             return
         for item in bom_structure[parent_id]:
             child_id, child_qty_per_parent, description, level, wastage_pct, unit_cost, uom = item
             if child_id in parent_chain:
+                print(f"WARNING: Circular reference detected - {child_id} already in chain")
                 continue
             gross_qty = parent_qty * child_qty_per_parent
             wastage_multiplier = 1 + (wastage_pct / 100)
@@ -3758,7 +3833,8 @@ def run_forecast_bom_analysis(gc_client=None):
                 requirements[child_id] = {
                     'gross_qty': 0, 'net_qty': 0, 'description': description, 'level': level,
                     'parent_skus': set(), 'wastage_pct': wastage_pct, 'unit_cost': unit_cost,
-                    'lead_time': 0, 'uom': uom
+                    'lead_time': 0,
+                    'uom': uom
                 }
             req = requirements[child_id]
             req['gross_qty'] += gross_qty
@@ -3768,18 +3844,19 @@ def run_forecast_bom_analysis(gc_client=None):
             new_parent_chain = parent_chain | {child_id}
             explode_bom(child_id, net_qty, bom_structure, requirements, new_parent_chain, root_sku)
 
-    def aggregate_requirements(forecast_df, bom_structure):
+    def aggregate_requirements(forecast_df: pd.DataFrame, bom_structure: Dict) -> Dict:
         all_requirements = {}
         for _, row in forecast_df.iterrows():
             explode_bom(row['SKU_ID'], row['Forecast_Demand'], bom_structure, all_requirements, set(), row['SKU_ID'])
         return all_requirements
 
-    def calculate_final_requirements(requirements, inventory=None):
+    def calculate_final_requirements(requirements: Dict, inventory: Optional[Dict] = None) -> pd.DataFrame:
         if not requirements:
+            print("WARNING: No requirements calculated. Returning empty DataFrame.")
             return pd.DataFrame(columns=[
                 'Component_ID', 'Description', 'UoM', 'Level', 'Gross_Requirement',
-                'Wastage%', 'Net_Requirement', 'Current_Inventory', 'Procurement_Needed',
-                'Unit_Cost', 'Total_Cost', 'Lead_Time', 'Parent_SKUs'
+                'Wastage%', 'Net_Requirement', 'Current_Inventory',
+                'Procurement_Needed', 'Unit_Cost', 'Total_Cost', 'Lead_Time', 'Parent_SKUs'
             ])
 
         results = []
@@ -3793,34 +3870,65 @@ def run_forecast_bom_analysis(gc_client=None):
             parent_skus_str = ', '.join(sorted(data['parent_skus']))
 
             results.append({
-                'Component_ID': comp_id, 'Description': data['description'], 'UoM': data['uom'],
-                'Level': data['level'], 'Gross_Requirement': round(gross_req, 2),
-                'Wastage%': data['wastage_pct'], 'Net_Requirement': round(net_req, 2),
-                'Current_Inventory': current_inv, 'Procurement_Needed': round(procurement_needed, 2),
-                'Unit_Cost': round(unit_cost, 2), 'Total_Cost': round(total_cost, 2),
-                'Lead_Time': data['lead_time'], 'Parent_SKUs': parent_skus_str
+                'Component_ID': comp_id,
+                'Description': data['description'],
+                'UoM': data['uom'],
+                'Level': data['level'],
+                'Gross_Requirement': round(gross_req, 2),
+                'Wastage%': data['wastage_pct'],
+                'Net_Requirement': round(net_req, 2),
+                'Current_Inventory': current_inv,
+                'Procurement_Needed': round(procurement_needed, 2),
+                'Unit_Cost': round(unit_cost, 2),
+                'Total_Cost': round(total_cost, 2),
+                'Lead_Time': data['lead_time'],
+                'Parent_SKUs': parent_skus_str
             })
 
         df = pd.DataFrame(results)
         df = df.sort_values(['Level', 'Component_ID']).reset_index(drop=True)
         return df
 
-    def calculate_rop_and_procurement(requirements_df, procurement_df, inventory_df, config):
+    # --------------------------------------------------------------------------
+    # PROCUREMENT LOGIC & ROP CALCULATIONS
+    # --------------------------------------------------------------------------
+
+    def calculate_rop_and_procurement(requirements_df: pd.DataFrame, procurement_df: pd.DataFrame,
+                                     inventory_df: pd.DataFrame, config: Dict) -> Tuple[pd.DataFrame, List[str]]:
+        print("\n" + "="*120)
+        print("🔄 PROCUREMENT LOGIC & ROP CALCULATIONS".center(120))
+        print("="*120)
+
         df = requirements_df.copy()
         df['Component_ID'] = df['Component_ID'].astype(str).str.strip().str.upper()
 
+        print(f"\n📊 Merging procurement parameters...")
+        print(f"   Requirements: {len(df)} components")
+        print(f"   Procurement data: {len(procurement_df)} entries")
+        print(f"   Inventory data: {len(inventory_df)} entries")
+
+        # normalise keys on all three frames
+        procurement_df = procurement_df.copy()
+        inventory_df = inventory_df.copy()
         procurement_df['component_item_code'] = procurement_df['component_item_code'].str.upper()
         inventory_df['component_item_code'] = inventory_df['component_item_code'].str.upper()
 
-        df = (df.merge(procurement_df[['component_item_code', 'lead_time_days', 'moq', 'eoq']],
-                       left_on='Component_ID', right_on='component_item_code', how='left')
+        df = (df
+              .merge(procurement_df[['component_item_code', 'lead_time_days', 'moq', 'eoq']],
+                     left_on='Component_ID', right_on='component_item_code', how='left')
               .merge(inventory_df[['component_item_code', 'current_inventory']],
-                     left_on='Component_ID', right_on='component_item_code', how='left', suffixes=('', '_inv')))
+                     left_on='Component_ID', right_on='component_item_code', how='left',
+                     suffixes=('', '_inv'))
+             )
 
         df['lead_time_days'] = df['lead_time_days'].fillna(0)
         df['moq'] = df['moq'].fillna(0)
         df['eoq'] = df['eoq'].fillna(0)
         df['current_inventory'] = df['current_inventory'].fillna(0)
+
+        print(f"\n✅ Merge complete")
+        print(f"   Components with lead-time data: {(df['lead_time_days'] > 0).sum()}")
+        print(f"   Components with inventory data: {(df['current_inventory'] > 0).sum()}")
 
         missing_data = []
         horizon_days = config['FORECAST_HORIZON_DAYS']
@@ -3832,6 +3940,9 @@ def run_forecast_bom_analysis(gc_client=None):
         df['Recommended_Order_Qty'] = 0.0
         df['Procurement_Cost'] = 0.0
         df['Order_Status'] = ''
+
+        print(f"\n📊 Calculating ROP for {len(df)} components...")
+        print(f"   Using Lead Time from Procurement Parameters sheet ONLY")
 
         for idx, row in df.iterrows():
             component_id = row['Component_ID']
@@ -3872,23 +3983,48 @@ def run_forecast_bom_analysis(gc_client=None):
             else:
                 df.at[idx, 'Order_Status'] = '🟢 OK'
 
+        # drop helper columns
         df = df.drop(columns=[c for c in df.columns if c.startswith('component_item_code')], errors='ignore')
 
         column_order = [
-            'Component_ID', 'Description', 'UoM', 'Level', 'Gross_Requirement', 'Wastage%', 'Net_Requirement',
-            'lead_time_days', 'moq', 'eoq', 'Daily_Demand', 'Safety_Stock', 'Calculated_ROP',
-            'Recommended_Order_Qty', 'Unit_Cost', 'Procurement_Cost', 'Order_Status', 'Parent_SKUs'
+            'Component_ID', 'Description', 'UoM', 'Level',
+            'Gross_Requirement', 'Wastage%', 'Net_Requirement',
+            'lead_time_days', 'moq', 'eoq',
+            'Daily_Demand', 'Safety_Stock',
+            'Calculated_ROP', 'Recommended_Order_Qty',
+            'Unit_Cost', 'Procurement_Cost',
+            'Order_Status', 'Parent_SKUs'
         ]
+
         final_columns = [col for col in column_order if col in df.columns] + \
-                        [col for col in df.columns if col not in column_order]
+                       [col for col in df.columns if col not in column_order]
         df = df[final_columns]
 
+        print(f"✅ ROP calculations complete")
+        print(f"   Components with missing data: {len(set(missing_data))}")
+
+        urgent_cnt = len(df[df['Order_Status'] == '🔴 Urgent Reorder'])
+        soon_cnt = len(df[df['Order_Status'] == '🟡 Reorder Soon'])
+        ok_cnt = len(df[df['Order_Status'] == '🟢 OK'])
+        print(f"   🔴 Urgent Reorder: {urgent_cnt}")
+        print(f"   🟡 Reorder Soon  : {soon_cnt}")
+        print(f"   🟢 OK             : {ok_cnt}")
+        print(f"   ⏱️  Max Lead Time : {df['lead_time_days'].max()} days")
+
+        # drop redundant / zero-only columns
         redundant = ['Current_Inventory', 'Lead_Time']
         df = df.drop(columns=[c for c in redundant if c in df.columns])
 
         return df, list(set(missing_data))
 
-    def create_bom_executive_summary(results_df, forecast_df, skipped_skus):
+    # --------------------------------------------------------------------------
+    # EXECUTIVE SUMMARY
+    # --------------------------------------------------------------------------
+
+    def create_executive_summary(results_df: pd.DataFrame, forecast_df: pd.DataFrame,
+                                skipped_skus: List[Dict]) -> pd.DataFrame:
+        """Return a tidy 2-column executive-summary dataframe."""
+
         total_components = len(results_df)
         total_forecast = forecast_df['Forecast_Demand'].sum()
         total_proc_cost = results_df['Procurement_Cost'].sum()
@@ -3904,6 +4040,8 @@ def run_forecast_bom_analysis(gc_client=None):
         top5_cost = results_df.nlargest(5, 'Procurement_Cost')[['Component_ID', 'Description', 'Procurement_Cost']]
 
         summary_data = []
+
+        # 1. Overview
         summary_data.append({'Metric': '═══ OVERVIEW ═══', 'Value': '', 'Unit': ''})
         summary_data.append({'Metric': 'Report Generated', 'Value': pd.Timestamp.now().strftime('%Y-%m-%d %H:%M'), 'Unit': ''})
         summary_data.append({'Metric': 'SKUs Forecasted', 'Value': len(forecast_df), 'Unit': 'SKUs'})
@@ -3912,12 +4050,14 @@ def run_forecast_bom_analysis(gc_client=None):
         summary_data.append({'Metric': 'SKUs Skipped (no forecast)', 'Value': len(skipped_skus), 'Unit': 'SKUs'})
         summary_data.append({'Metric': '', 'Value': '', 'Unit': ''})
 
+        # 2. Financial
         summary_data.append({'Metric': '═══ FINANCIAL ═══', 'Value': '', 'Unit': ''})
         summary_data.append({'Metric': 'Total Procurement Cost', 'Value': f'${total_proc_cost:,.2f}', 'Unit': ''})
         summary_data.append({'Metric': 'Urgent Orders Cost', 'Value': f'${urgent_cost:,.2f}', 'Unit': ''})
         summary_data.append({'Metric': 'Cost per Forecasted Unit', 'Value': f'${total_proc_cost/total_forecast if total_forecast else 0:.2f}', 'Unit': ''})
         summary_data.append({'Metric': '', 'Value': '', 'Unit': ''})
 
+        # 3. Inventory Status
         summary_data.append({'Metric': '═══ INVENTORY STATUS ═══', 'Value': '', 'Unit': ''})
         summary_data.append({'Metric': '🔴 Urgent Reorder', 'Value': urgent_cnt, 'Unit': 'components'})
         summary_data.append({'Metric': '🟡 Reorder Soon', 'Value': soon_cnt, 'Unit': 'components'})
@@ -3925,12 +4065,14 @@ def run_forecast_bom_analysis(gc_client=None):
         summary_data.append({'Metric': 'Urgency Rate', 'Value': f'{urgent_cnt/total_components*100 if total_components else 0:.1f}%', 'Unit': ''})
         summary_data.append({'Metric': '', 'Value': '', 'Unit': ''})
 
+        # 4. Lead-Time
         summary_data.append({'Metric': '═══ LEAD-TIME ═══', 'Value': '', 'Unit': ''})
         summary_data.append({'Metric': 'Average Lead Time', 'Value': f'{avg_lead:.1f}', 'Unit': 'days'})
         summary_data.append({'Metric': 'Maximum Lead Time', 'Value': f'{max_lead:.0f}', 'Unit': 'days'})
         summary_data.append({'Metric': 'Critical-Path Components', 'Value': len(results_df[results_df['lead_time_days'] == max_lead]), 'Unit': ''})
         summary_data.append({'Metric': '', 'Value': '', 'Unit': ''})
 
+        # 5. Top 5 Cost Drivers
         summary_data.append({'Metric': '═══ TOP 5 COST DRIVERS ═══', 'Value': '', 'Unit': ''})
         for _, row in top5_cost.iterrows():
             summary_data.append({'Metric': f"{row['Component_ID']} – {row['Description'][:30]}",
@@ -3938,28 +4080,169 @@ def run_forecast_bom_analysis(gc_client=None):
 
         return pd.DataFrame(summary_data)
 
-    # --- Main BOM Execution Logic ---
-    try:
-        print("\n" + "="*80)
-        print("🚀 FORECAST BOM ANALYSIS - STARTING".center(80))
-        print("="*80)
+    # --------------------------------------------------------------------------
+    # EXCEL FORMATTING (COMPLETE - from original script)
+    # --------------------------------------------------------------------------
 
-        # Reuse provided client or create new one
+    def format_excel_output(writer, results_df: pd.DataFrame, forecast_df: pd.DataFrame,
+                           procurement_df: pd.DataFrame, inventory_df: pd.DataFrame,
+                           skipped_skus: List[Dict], missing_data: List[str]) -> None:
+
+        workbook = writer.book
+
+        header_fill = PatternFill(start_color='366092', end_color='366092', fill_type='solid')
+        header_font = Font(name='Calibri', size=11, bold=True, color='FFFFFF')
+        urgent_fill = PatternFill(start_color='FFC7CE', end_color='FFC7CE', fill_type='solid')
+        soon_fill = PatternFill(start_color='FFEB9C', end_color='FFEB9C', fill_type='solid')
+        ok_fill = PatternFill(start_color='C6EFCE', end_color='C6EFCE', fill_type='solid')
+        thin_border = Border(left=Side(style='thin'), right=Side(style='thin'),
+                            top=Side(style='thin'), bottom=Side(style='thin'))
+
+        for sheet_name in workbook.sheetnames:
+            worksheet = workbook[sheet_name]
+
+            # Headers
+            for cell in worksheet[1]:
+                cell.font = header_font
+                cell.fill = header_fill
+                cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+                cell.border = thin_border
+
+            # Auto-adjust column widths
+            for column in worksheet.columns:
+                max_length = 0
+                column_letter = get_column_letter(column[0].column)
+                for cell in column:
+                    try:
+                        if len(str(cell.value)) > max_length:
+                            max_length = len(str(cell.value))
+                    except:
+                        pass
+                adjusted_width = min(max_length + 2, 50)
+                worksheet.column_dimensions[column_letter].width = adjusted_width
+
+            # Borders
+            for row in worksheet.iter_rows(min_row=1, max_row=worksheet.max_row,
+                                          min_col=1, max_col=worksheet.max_column):
+                for cell in row:
+                    if cell.value is not None:
+                        cell.border = thin_border
+                        cell.alignment = Alignment(vertical='center')
+
+            # Sheet-specific formatting
+            if sheet_name == 'MRP_Requirements':
+                # Color rows based on Order_Status
+                if 'Order_Status' in results_df.columns:
+                    status_col_idx = results_df.columns.get_loc('Order_Status') + 1
+                    for row in range(2, worksheet.max_row + 1):
+                        status_cell = worksheet.cell(row=row, column=status_col_idx)
+                        fill_color = None
+                        if '🔴' in str(status_cell.value):
+                            fill_color = urgent_fill
+                        elif '🟡' in str(status_cell.value):
+                            fill_color = soon_fill
+                        elif '🟢' in str(status_cell.value):
+                            fill_color = ok_fill
+                        if fill_color:
+                            for col in range(1, worksheet.max_column + 1):
+                                worksheet.cell(row=row, column=col).fill = fill_color
+
+                # Currency formatting
+                currency_cols = ['Unit_Cost', 'Procurement_Cost', 'Total_Cost']
+                for col_name in currency_cols:
+                    if col_name in results_df.columns:
+                        col_idx = results_df.columns.get_loc(col_name) + 1
+                        col_letter = get_column_letter(col_idx)
+                        for row in range(2, worksheet.max_row + 1):
+                            worksheet[f'{col_letter}{row}'].number_format = '$#,##0.00'
+
+                # Number formatting
+                number_cols = ['Gross_Requirement', 'Net_Requirement', 'current_inventory',
+                              'Recommended_Order_Qty', 'Daily_Demand', 'Safety_Stock']
+                for col_name in number_cols:
+                    if col_name in results_df.columns:
+                        col_idx = results_df.columns.get_loc(col_name) + 1
+                        col_letter = get_column_letter(col_idx)
+                        for row in range(2, worksheet.max_row + 1):
+                            worksheet[f'{col_letter}{row}'].number_format = '#,##0.00'
+
+                worksheet.freeze_panes = 'B2'
+
+            elif sheet_name == 'Forecast':
+                if 'Forecast_Demand' in forecast_df.columns:
+                    col_idx = forecast_df.columns.get_loc('Forecast_Demand') + 1
+                    col_letter = get_column_letter(col_idx)
+                    for row in range(2, worksheet.max_row + 1):
+                        worksheet[f'{col_letter}{row}'].number_format = '#,##0'
+                worksheet.freeze_panes = 'A2'
+
+            elif sheet_name == 'Urgent_Reorders':
+                for row in range(2, worksheet.max_row + 1):
+                    for col in range(1, worksheet.max_column + 1):
+                        worksheet.cell(row=row, column=col).fill = urgent_fill
+                worksheet.freeze_panes = 'A2'
+
+            elif sheet_name == 'Executive_Summary':
+                worksheet.column_dimensions['A'].width = 50
+                worksheet.column_dimensions['B'].width = 25
+                worksheet.column_dimensions['C'].width = 15
+
+                # Center columns B & C
+                for row in worksheet.iter_rows(min_row=1, max_row=worksheet.max_row, min_col=2, max_col=3):
+                    for cell in row:
+                        cell.alignment = Alignment(horizontal='center', vertical='center')
+
+                # Inventory-status section highlighting
+                in_inventory_section = False
+                for row in worksheet.iter_rows(min_row=2, max_row=worksheet.max_row):
+                    label = str(row[0].value).strip()
+                    if 'INVENTORY STATUS' in label:
+                        in_inventory_section = True
+                        continue
+                    if in_inventory_section and label.startswith('═══'):
+                        break
+                    if in_inventory_section:
+                        fill_color = None
+                        if label.startswith('🔴'):
+                            fill_color = urgent_fill
+                        elif label.startswith('🟡'):
+                            fill_color = soon_fill
+                        elif label.startswith('🟢'):
+                            fill_color = ok_fill
+                        if fill_color:
+                            for col_idx in range(1, 4):
+                                row[col_idx - 1].fill = fill_color
+
+                worksheet.freeze_panes = 'A2'
+
+        print("✅ Applied professional Excel formatting")
+
+    # ==========================================================================
+    # MAIN BOM EXECUTION LOGIC
+    # ==========================================================================
+
+    try:
+        print("\n" + "="*120)
+        print("🚀 MULTI-LEVEL BOM EXPLOSION SYSTEM - FULL MRP WITH PROCUREMENT".center(120))
+        print("="*120)
+
+        # 1. Authenticate - reuse provided client or create new one
         if gc_client is None:
             print("🔄 Creating new Google Sheets connection for BOM...")
             if "gcp_service_account_sheets" not in os.environ:
-                raise FileNotFoundError("No GCP service account credentials found.")
-            
+                raise FileNotFoundError("No GCP service account credentials found in environment variables.")
+
             creds_dict = json.loads(os.environ["gcp_service_account_sheets"])
             credentials_file = "temp_bom_credentials.json"
             with open(credentials_file, "w") as f:
                 json.dump(creds_dict, f)
-            
+
             scopes = ['https://www.googleapis.com/auth/spreadsheets.readonly',
                       'https://www.googleapis.com/auth/drive.readonly']
             creds = Credentials.from_service_account_file(credentials_file, scopes=scopes)
             client = gspread.authorize(creds)
-            
+            print("✅ Successfully authenticated with Google Sheets API")
+
             try:
                 os.remove(credentials_file)
             except:
@@ -3968,69 +4251,67 @@ def run_forecast_bom_analysis(gc_client=None):
             client = gc_client
             print("✅ Reusing existing Google Sheets connection")
 
-        # 1. Fetch BOM
+        # 2. Fetch BOM
         bom_df = fetch_bom_from_sheet(client, BOM_CONFIG['SPREADSHEET_URL'], BOM_CONFIG['WORKSHEET_NAME'])
 
-        # 2. Build BOM structure
+        # 3. Build BOM structure
         bom_structure = build_bom_structure_from_sheet(bom_df)
 
-        # 3. Get forecast data
+        # 4. Forecast
         forecast_df, skipped_skus = fetch_forecast_demand_from_sheets(client, bom_df, BOM_CONFIG)
-        
+
         if len(forecast_df) == 0:
             print("\n❌ No valid forecasts found. Cannot proceed with BOM explosion.")
             return None, None
 
-        # 4. Aggregate requirements
+        # 5. Aggregate requirements
         requirements = aggregate_requirements(forecast_df, bom_structure)
 
-        # 5. Calculate final requirements
+        # 6. Final requirements (no inventory yet)
         results_df = calculate_final_requirements(requirements, inventory=None)
 
-        # 6. Fetch procurement parameters
+        # 7. Procurement parameters
         procurement_df = fetch_procurement_parameters(client, BOM_CONFIG['PROCUREMENT_PARAMS_URL'],
-                                                      BOM_CONFIG['PROCUREMENT_PARAMS_WORKSHEET'],
-                                                      'A', BOM_CONFIG['PROCUREMENT_LEAD_TIME_COLUMN'],
-                                                      BOM_CONFIG['PROCUREMENT_MOQ_COLUMN'],
-                                                      BOM_CONFIG['PROCUREMENT_EOQ_COLUMN'])
+                                                     BOM_CONFIG['PROCUREMENT_PARAMS_WORKSHEET'],
+                                                     'A', BOM_CONFIG['PROCUREMENT_LEAD_TIME_COLUMN'],
+                                                     BOM_CONFIG['PROCUREMENT_MOQ_COLUMN'],
+                                                     BOM_CONFIG['PROCUREMENT_EOQ_COLUMN'])
 
-        # 7. Fetch current inventory
+        # 8. Current inventory
         inventory_df = fetch_inventory_data(client, BOM_CONFIG['INVENTORY_URL'],
-                                            BOM_CONFIG['INVENTORY_WORKSHEET'], 'A',
-                                            BOM_CONFIG['INVENTORY_QTY_COLUMN'])
+                                           BOM_CONFIG['INVENTORY_WORKSHEET'], 'A',
+                                           BOM_CONFIG['INVENTORY_QTY_COLUMN'])
 
-        # 8. Calculate ROP and procurement
+        # 9. ROP & procurement
         results_df, missing_procurement_data = calculate_rop_and_procurement(results_df, procurement_df,
-                                                                              inventory_df, BOM_CONFIG)
+                                                                             inventory_df, BOM_CONFIG)
 
-        # 9. Create Excel output to buffer
+        # 10. Excel export to buffer
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f'HG_BOM_Analysis_{timestamp}.xlsx'
-        
+
         excel_buffer = BytesIO()
-        
+
         with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
-            # Executive Summary first
-            exec_summary_df = create_bom_executive_summary(results_df, forecast_df, skipped_skus)
+
+            # 1. Executive Summary first
+            exec_summary_df = create_executive_summary(results_df, forecast_df, skipped_skus)
             exec_summary_df.to_excel(writer, sheet_name='Executive_Summary', index=False)
 
-            # Main results
+            # 2. All other sheets follow
             results_df.to_excel(writer, sheet_name='MRP_Requirements', index=False)
             forecast_df.to_excel(writer, sheet_name='Forecast', index=False)
             procurement_df.to_excel(writer, sheet_name='Procurement_Parameters', index=False)
             inventory_df.to_excel(writer, sheet_name='Current_Inventory', index=False)
 
-            # Urgent reorders
             urgent = results_df[results_df['Order_Status'] == '🔴 Urgent Reorder'].copy()
             if len(urgent) > 0:
                 urgent.to_excel(writer, sheet_name='Urgent_Reorders', index=False)
 
-            # Skipped SKUs
             if skipped_skus and len(skipped_skus) > 0:
                 skipped_df = pd.DataFrame(skipped_skus)
                 skipped_df.to_excel(writer, sheet_name='Skipped_SKUs', index=False)
 
-            # Missing procurement data
             if missing_procurement_data:
                 missing_df = pd.DataFrame({'Missing_Data': missing_procurement_data})
                 missing_df[['Component_ID', 'Reason']] = missing_df['Missing_Data'].str.split(':', expand=True, n=1)
@@ -4040,17 +4321,44 @@ def run_forecast_bom_analysis(gc_client=None):
                 missing_df = missing_df[['Component_ID', 'Description', 'Reason']]
                 missing_df.to_excel(writer, sheet_name='Missing_Procurement_Data', index=False)
 
+            # Apply formatting
+            format_excel_output(writer, results_df, forecast_df, procurement_df, inventory_df,
+                               skipped_skus, missing_procurement_data)
+
         excel_buffer.seek(0)
 
-        print(f"\n✅ FORECAST BOM ANALYSIS COMPLETE!")
-        print(f"   📊 Components analyzed: {len(results_df)}")
-        print(f"   🔴 Urgent reorders: {len(urgent) if 'urgent' in dir() else 0}")
-        print(f"   💾 Output ready for download")
+        # Print summary
+        print(f"\n💾 Results ready for download: {filename}")
+        print("   Sheets included:")
+        print("   ✅ Executive_Summary: Key metrics and status")
+        print("   ✅ MRP_Requirements: Complete requirements with procurement logic")
+        print("   ✅ Forecast: Real forecast data with UPC mapping")
+        print("   ✅ Procurement_Parameters: Lead time, MOQ, EOQ data")
+        print("   ✅ Current_Inventory: Inventory levels")
+        if len(urgent) > 0:
+            print(f"   🔴 Urgent_Reorders: {len(urgent)} components requiring immediate action")
+        if skipped_skus and len(skipped_skus) > 0:
+            print(f"   ⚠️  Skipped_SKUs: {len(skipped_skus)} SKUs without valid forecasts")
+        if missing_procurement_data:
+            print(f"   ⚠️  Missing_Procurement_Data: {len(set(missing_procurement_data))} items")
+
+        print("\n✅ MRP WITH PROCUREMENT LOGIC COMPLETE!\n")
 
         return excel_buffer, filename
 
     except Exception as e:
-        print(f"\n❌ FORECAST BOM ERROR: {str(e)}")
+        print(f"\n❌ ERROR: {str(e)}\n")
+        print("Please check:")
+        print("1. All BOM_CONFIG dictionary values are correct")
+        print("2. Service account credentials are available in environment")
+        print("3. ALL Google Sheets (5 sheets total) are shared with service account email:")
+        print("   - BOM Sheet")
+        print("   - SKU Reference Sheet")
+        print("   - Forecast Sheet")
+        print("   - Procurement Parameters Sheet")
+        print("   - Current Inventory Sheet")
+        print("4. Column letters in BOM_CONFIG match your actual sheets")
+        print("5. Worksheet names are correct (case-sensitive)")
         import traceback
         traceback.print_exc()
         return None, None

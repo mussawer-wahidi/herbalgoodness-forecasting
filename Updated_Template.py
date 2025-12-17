@@ -6535,10 +6535,12 @@ if "excel_buffer" not in st.session_state:
    # st.session_state.filename = None
     st.session_state.drive_file_id = None
     st.session_state.file_downloaded = False
-    # NEW: BOM Analysis session state
+    # BOM Analysis session state
     st.session_state.bom_excel_buffer = None
     st.session_state.bom_filename = None
     st.session_state.bom_analysis_complete = False
+    # MODIFY: Add BOM Google Sheets URL to session state
+    st.session_state.bom_sheets_url = None
 
 # --- AI Forecast Engine Section ---
 st.markdown("""
@@ -6817,6 +6819,8 @@ with bom_button_container:
                     st.session_state.bom_excel_buffer = bom_excel_buffer
                     st.session_state.bom_filename = bom_filename
                     st.session_state.bom_analysis_complete = True
+                    # MODIFY: Store BOM Google Sheets URL
+                    st.session_state.bom_sheets_url = "https://docs.google.com/spreadsheets/d/1izbZowu4FEiwiVwKWIiRz066aWWOII5u/edit?gid=1741087285#gid=1741087285"
                     
                     bom_end_time = time.time()
                     bom_duration_sec = bom_end_time - bom_start_time
@@ -6837,15 +6841,15 @@ with bom_button_container:
 if st.session_state.bom_analysis_complete and st.session_state.bom_excel_buffer:
     st.markdown("""
         <div class="holo-card" style="margin-top: 1rem;">
-            <h3 class="section-title">📥 BOM ANALYSIS DOWNLOAD</h3>
+            <h3 class="section-title">📥 BOM ANALYSIS ACCESS PORTAL</h3>
         </div>
     """, unsafe_allow_html=True)
     
-    bom_col1, bom_col2 = st.columns(2)
+    bom_col1, bom_col2, bom_col3 = st.columns(3, gap="large")
     
     with bom_col1:
         st.download_button(
-            label="📥 DOWNLOAD BOM ANALYSIS WORKBOOK",
+            label="📥 DOWNLOAD BOM WORKBOOK",
             data=st.session_state.bom_excel_buffer.getvalue(),
             file_name=st.session_state.bom_filename,
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -6854,11 +6858,21 @@ if st.session_state.bom_analysis_complete and st.session_state.bom_excel_buffer:
         )
     
     with bom_col2:
-        st.markdown("""
-            <p style="color: rgba(255, 255, 255, 0.6); font-size: 0.9rem; padding: 1rem;">
-                📋 Includes: Executive Summary, MRP Requirements, Forecast Data, 
-                Procurement Parameters, Inventory, Urgent Reorders
-            </p>
+        # NEW: Google Sheets button
+        bom_sheets_url = "https://docs.google.com/spreadsheets/d/1izbZowu4FEiwiVwKWIiRz066aWWOII5u/edit?gid=1741087285#gid=1741087285"
+        st.markdown(f"""
+            <a href="{bom_sheets_url}" target="_blank" class="neural-btn">
+                ☁️ OPEN BOM WORKBOOK (SHEETS)
+            </a>
+        """, unsafe_allow_html=True)
+    
+    with bom_col3:
+        # NEW: Looker Dashboard button
+        bom_looker_url = "https://lookerstudio.google.com/reporting/9525ae1e-6f0e-4b5f-ae50-ca84312b76fd/page/p_xsi76rd4yd/edit?rm=minimal"
+        st.markdown(f"""
+            <a href="{bom_looker_url}" target="_blank" class="neural-btn">
+                📊 OPEN BOM LOOKER DASHBOARD
+            </a>
         """, unsafe_allow_html=True)
 
 # --- Data Visualization Preview ---

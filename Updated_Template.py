@@ -4130,7 +4130,7 @@ def run_forecast_bom_analysis(gc_client=None):
                         cell.alignment = Alignment(vertical='center')
 
             # Sheet-specific formatting
-            if sheet_name == 'MRP_Requirements':
+            if sheet_name == '📦 MRP Requirements':
                 # Color rows based on Order_Status
                 if 'Order_Status' in results_df.columns:
                     status_col_idx = results_df.columns.get_loc('Order_Status') + 1
@@ -4168,7 +4168,7 @@ def run_forecast_bom_analysis(gc_client=None):
 
                 worksheet.freeze_panes = 'B2'
 
-            elif sheet_name == 'Forecast':
+            elif sheet_name == '📈 Forecasted Demand':
                 if 'Forecast_Demand' in forecast_df.columns:
                     col_idx = forecast_df.columns.get_loc('Forecast_Demand') + 1
                     col_letter = get_column_letter(col_idx)
@@ -4176,13 +4176,13 @@ def run_forecast_bom_analysis(gc_client=None):
                         worksheet[f'{col_letter}{row}'].number_format = '#,##0'
                 worksheet.freeze_panes = 'A2'
 
-            elif sheet_name == 'Urgent_Reorders':
+            elif sheet_name == '🚨 Urgent Reorders':
                 for row in range(2, worksheet.max_row + 1):
                     for col in range(1, worksheet.max_column + 1):
                         worksheet.cell(row=row, column=col).fill = urgent_fill
                 worksheet.freeze_panes = 'A2'
 
-            elif sheet_name == 'Executive_Summary':
+            elif sheet_name == '📊 Executive Summary':
                 worksheet.column_dimensions['A'].width = 50
                 worksheet.column_dimensions['B'].width = 25
                 worksheet.column_dimensions['C'].width = 15
@@ -4296,24 +4296,27 @@ def run_forecast_bom_analysis(gc_client=None):
 
             # 1. Executive Summary first
             exec_summary_df = create_executive_summary(results_df, forecast_df, skipped_skus)
-            exec_summary_df.to_excel(writer, sheet_name='Executive_Summary', index=False)
+            exec_summary_df.to_excel(writer, sheet_name='📊 Executive Summary', index=False)
 
-            # 2. All other sheets follow
-            results_df.to_excel(writer, sheet_name='MRP_Requirements', index=False)
-            forecast_df.to_excel(writer, sheet_name='Forecast', index=False)
-            procurement_df.to_excel(writer, sheet_name='Procurement_Parameters', index=False)
-            inventory_df.to_excel(writer, sheet_name='Current_Inventory', index=False)
+            # 2. MRP Requirements second
+            results_df.to_excel(writer, sheet_name='📦 MRP Requirements', index=False)
 
+            # 3. Urgent Reorders third (MOVED HERE)
             urgent = results_df[results_df['Order_Status'] == '🔴 Urgent Reorder'].copy()
             if len(urgent) > 0:
-                urgent.to_excel(writer, sheet_name='Urgent_Reorders', index=False)
+                urgent.to_excel(writer, sheet_name='🚨 Urgent Reorders', index=False)
+
+            # 4. Remaining sheets follow
+            forecast_df.to_excel(writer, sheet_name='📈 Forecasted Demand', index=False)
+            procurement_df.to_excel(writer, sheet_name='⚙️ Procurement Parameters', index=False)
+            inventory_df.to_excel(writer, sheet_name='📋 Current Inventory', index=False)
 
             if skipped_skus and len(skipped_skus) > 0:
                 skipped_df = pd.DataFrame(skipped_skus)
-                skipped_df.to_excel(writer, sheet_name='Skipped_SKUs', index=False)
+                skipped_df.to_excel(writer, sheet_name='⚠️ Skipped SKUs', index=False)
 
             if missing_procurement_data:
-                missing_df = pd.DataFrame({'Missing_Data': missing_procurement_data})
+                missing_df = pd.DataFrame({'❌ Missing_Data': missing_procurement_data})
                 missing_df[['Component_ID', 'Reason']] = missing_df['Missing_Data'].str.split(':', expand=True, n=1)
                 missing_df['Description'] = missing_df['Component_ID'].map(
                     results_df.set_index('Component_ID')['Description'].to_dict()
@@ -4344,6 +4347,33 @@ def run_forecast_bom_analysis(gc_client=None):
 
         print("\n✅ MRP WITH PROCUREMENT LOGIC COMPLETE!\n")
 
+        # NEW: Upload BOM output to Google Sheets and Google Drive
+        try:
+            print("\n" + "="*80)
+            print("📤 UPLOADING BOM OUTPUT TO CLOUD SERVICES".center(80))
+            print("="*80)
+            
+            # Upload to Google Sheets
+            excel_buffer.seek(0)  # Reset buffer position
+            bom_sheet_url = upload_bom_excel_to_google_sheet(excel_buffer)
+            
+            # Upload to Google Drive
+            excel_buffer.seek(0)  # Reset buffer position again
+            bom_drive_file_id = upload_bom_to_google_drive_from_buffer(excel_buffer)
+            
+            print("\n✅ BOM output successfully uploaded to:")
+            print(f"   📊 Google Sheets: {bom_sheet_url}")
+            print(f"   📁 Google Drive File ID: {bom_drive_file_id}")
+            
+        except Exception as e:
+            print(f"\n⚠️ Warning: Failed to upload BOM output to cloud: {str(e)}")
+            print("   📥 Local download will still be available.")
+            import traceback
+            traceback.print_exc()
+
+        # Reset buffer for download
+        excel_buffer.seek(0)
+        
         return excel_buffer, filename
 
     except Exception as e:
@@ -4362,6 +4392,264 @@ def run_forecast_bom_analysis(gc_client=None):
         import traceback
         traceback.print_exc()
         return None, None
+    
+# NEW: BOM-specific Google Sheets Upload Function
+# PLACEMENT: After run_forecast_bom_analysis function, before upload_excel_to_google_sheet
+
+def upload_bom_excel_to_google_sheet(excel_buffer, sheet_id=None):
+    """
+    Upload BOM Excel output to a dedicated Google Sheet.
+    Reuses the same authentication pattern as the main upload function.
+    """
+    import pandas as pd
+    import numpy as np
+    import gspread
+    import time
+    import os
+    import json
+    from google.oauth2.service_account import Credentials
+
+    print("🔄 Uploading BOM output to Google Sheets...")
+    
+    # Ensure env var is present
+    if "gcp_service_account_sheets" not in os.environ:
+        raise FileNotFoundError("❌ No GCP service account credentials found in environment variables.")
+
+    try:
+        raw_secret = os.environ["gcp_service_account_sheets"]
+        creds_dict = json.loads(raw_secret)
+        print(f"✅ Loaded service account for: {creds_dict.get('client_email', 'UNKNOWN EMAIL')}")
+    except Exception as e:
+        print("❌ Failed to parse service account secret")
+        import traceback
+        traceback.print_exc()
+        raise
+    
+    # Save to temp file
+    credentials_file = "temp_bom_sheet_credentials.json"
+    with open(credentials_file, "w") as f:
+        json.dump(creds_dict, f)
+
+    # Create credentials from temp file
+    scopes = ['https://www.googleapis.com/auth/spreadsheets']
+    credentials = Credentials.from_service_account_file(credentials_file, scopes=scopes)
+    gc = gspread.authorize(credentials)
+
+    # Clean up temp file
+    try:
+        os.remove(credentials_file)
+    except:
+        pass
+
+    # BOM-specific Google Sheet ID
+    if sheet_id is None:
+        sheet_id = "1_wXJDNZeZ7Y31S_i3UUDQ89vCbJC-xotm3wADBSf5eY"
+
+    try:
+        sheet = gc.open_by_key(sheet_id)
+        print(f"🔁 Connected to BOM Google Sheet: {sheet.title}")
+    except Exception as e:
+        print("❌ Failed to connect to BOM Google Sheet:", e)
+        raise
+
+    try:
+        # Read Excel from buffer
+        excel_buffer.seek(0)
+        all_sheets = pd.read_excel(excel_buffer, sheet_name=None, engine="openpyxl")
+
+        # Existing sheet names
+        existing_titles = [ws.title for ws in sheet.worksheets()]
+
+        for i, (sheet_name, df) in enumerate(all_sheets.items()):
+            df = df.replace([np.nan, np.inf, -np.inf], "").astype(str)
+
+            # Reuse existing sheet if available
+            if sheet_name in existing_titles:
+                ws = sheet.worksheet(sheet_name)
+                ws.clear()
+            else:
+                # Add new sheet with enough space
+                ws = sheet.add_worksheet(title=sheet_name[:99], rows=str(len(df)+50), cols=str(len(df.columns)+10))
+
+            # Push to Google Sheet
+            try:
+                ws.update([df.columns.tolist()] + df.values.tolist())
+                print(f"✅ Updated BOM sheet: {sheet_name}")
+            except Exception as e:
+                print(f"⚠️ Error updating '{sheet_name}': {e}")
+            
+            time.sleep(1)  # Add delay to avoid quota issues
+
+        print(f"✅ BOM output uploaded to Google Sheets successfully")
+        return f"https://docs.google.com/spreadsheets/d/{sheet_id}"
+
+    except Exception as e:
+        print("❌ Unexpected error while uploading BOM to Google Sheets:", e)
+        import traceback
+        traceback.print_exc()
+        return None
+
+
+# NEW: BOM-specific Google Drive Upload Function
+# PLACEMENT: Immediately after upload_bom_excel_to_google_sheet
+
+def upload_bom_to_google_drive_from_buffer(buffer):
+    """
+    Upload BOM Excel output to Google Drive with timestamped backup.
+    Reuses the same authentication pattern as the main upload function.
+    """
+    from datetime import datetime
+    from google.oauth2 import service_account
+    from googleapiclient.discovery import build
+    from googleapiclient.http import MediaIoBaseUpload
+    
+    SCOPES = ['https://www.googleapis.com/auth/drive']
+    SHARED_DRIVE_ID = '0ANRBYKNxrAXaUk9PVA'
+    FOLDER_ID = '0ANRBYKNxrAXaUk9PVA'
+    FIXED_FILENAME = "BOM Analysis Workbook.xlsx"
+    BOM_SUBFOLDER_ID = '1PHfLwnrl15wbu5si02Y1ZEqTs7EZKEp7'  # BOM-specific timestamp subfolder
+
+    # Handle service account credentials - GCP only
+    if "gcp_service_account_drive" not in os.environ:
+        raise FileNotFoundError("❌ No Google Drive service account credentials found in environment variables.")
+    
+    print("🔄 Uploading BOM output to Google Drive...")
+    
+    # Load credentials from environment
+    creds_dict = json.loads(os.environ["gcp_service_account_drive"])
+    
+    # Write to temporary file
+    SERVICE_ACCOUNT_FILE = "temp_bom_drive_service_account.json"
+    with open(SERVICE_ACCOUNT_FILE, "w") as f:
+        json.dump(creds_dict, f)
+    
+    # Initialize credentials and service
+    credentials = service_account.Credentials.from_service_account_file(
+        SERVICE_ACCOUNT_FILE, scopes=SCOPES
+    )
+    drive_service = build('drive', 'v3', credentials=credentials)
+
+    # ==========================================================================
+    # PART 1: Update/Create main BOM file
+    # ==========================================================================
+    
+    # Check if file with same name already exists
+    query = f"'{FOLDER_ID}' in parents and name = '{FIXED_FILENAME}' and trashed = false"
+    result = drive_service.files().list(
+        q=query,
+        fields="files(id)",
+        supportsAllDrives=True,
+        includeItemsFromAllDrives=True,
+        corpora="drive",
+        driveId=SHARED_DRIVE_ID
+    ).execute()
+
+    existing_files = result.get("files", [])
+
+    # If exists, update it
+    if existing_files:
+        file_id = existing_files[0]['id']
+        buffer.seek(0)
+        media = MediaIoBaseUpload(buffer,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            resumable=True
+        )
+        updated_file = drive_service.files().update(
+            fileId=file_id,
+            media_body=media,
+            supportsAllDrives=True
+        ).execute()
+        print(f"♻️ Existing BOM file updated: {FIXED_FILENAME} (ID: {file_id})")
+    else:
+        buffer.seek(0)
+        media = MediaIoBaseUpload(buffer,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            resumable=True
+        )
+        file_metadata = {
+            'name': FIXED_FILENAME,
+            'parents': [FOLDER_ID],
+            'driveId': SHARED_DRIVE_ID
+        }
+        uploaded_file = drive_service.files().create(
+            body=file_metadata,
+            media_body=media,
+            supportsAllDrives=True,
+            fields='id'
+        ).execute()
+        file_id = uploaded_file.get('id')
+        print(f"✅ New BOM file uploaded: {FIXED_FILENAME} (ID: {file_id})")
+
+    # ==========================================================================
+    # PART 2: Save timestamped backup to BOM-specific subfolder
+    # ==========================================================================
+    
+    try:
+        print("📁 Starting BOM timestamped backup process...")
+        
+        # Generate timestamped filename
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamped_filename = f"BOM_Backup_{timestamp}.xlsx"
+        print(f"🕒 Generated timestamped filename: {timestamped_filename}")
+        
+        # Check if file with same timestamp already exists (overwrite if exists)
+        timestamp_query = f"'{BOM_SUBFOLDER_ID}' in parents and name = '{timestamped_filename}' and trashed = false"
+        timestamp_result = drive_service.files().list(
+            q=timestamp_query,
+            fields="files(id)",
+            supportsAllDrives=True,
+            includeItemsFromAllDrives=True,
+            corpora="drive",
+            driveId=SHARED_DRIVE_ID
+        ).execute()
+        
+        existing_timestamp_files = timestamp_result.get("files", [])
+        
+        # Upload or update timestamped file
+        buffer.seek(0)
+        media = MediaIoBaseUpload(buffer,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            resumable=True
+        )
+        
+        if existing_timestamp_files:
+            # Update existing timestamped file
+            timestamp_file_id = existing_timestamp_files[0]['id']
+            updated_timestamp_file = drive_service.files().update(
+                fileId=timestamp_file_id,
+                media_body=media,
+                supportsAllDrives=True
+            ).execute()
+            print(f"🔄 Overwritten existing BOM timestamped backup: {timestamped_filename}")
+        else:
+            # Create new timestamped file
+            timestamp_file_metadata = {
+                'name': timestamped_filename,
+                'parents': [BOM_SUBFOLDER_ID],
+                'driveId': SHARED_DRIVE_ID
+            }
+            uploaded_timestamp_file = drive_service.files().create(
+                body=timestamp_file_metadata,
+                media_body=media,
+                supportsAllDrives=True,
+                fields='id'
+            ).execute()
+            print(f"✅ New BOM timestamped backup saved: {timestamped_filename}")
+            
+        print("📚 BOM timestamped backup process completed successfully!")
+        
+    except Exception as e:
+        print(f"⚠️ Warning: Failed to save BOM timestamped backup: {str(e)}")
+        print("📝 Main BOM file upload was successful, continuing...")
+
+    # Clean up temp file
+    try:
+        os.remove(SERVICE_ACCOUNT_FILE)
+    except:
+        pass
+
+    print(f"✅ BOM output uploaded to Google Drive successfully")
+    return file_id
 
 def upload_excel_to_google_sheet(excel_buffer, sheet_id=None):
     import pandas as pd

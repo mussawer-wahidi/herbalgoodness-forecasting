@@ -4315,14 +4315,42 @@ def run_forecast_bom_analysis(gc_client=None):
                 skipped_df = pd.DataFrame(skipped_skus)
                 skipped_df.to_excel(writer, sheet_name='⚠️ Skipped SKUs', index=False)
 
-            if missing_procurement_data:
-                missing_df = pd.DataFrame({'❌ Missing_Data': missing_procurement_data})
-                missing_df[['Component_ID', 'Reason']] = missing_df['Missing_Data'].str.split(':', expand=True, n=1)
-                missing_df['Description'] = missing_df['Component_ID'].map(
-                    results_df.set_index('Component_ID')['Description'].to_dict()
-                ).fillna('')
-                missing_df = missing_df[['Component_ID', 'Description', 'Reason']]
-                missing_df.to_excel(writer, sheet_name='Missing_Procurement_Data', index=False)
+            # MODIFY: Added safer handling for missing_procurement_data
+            if missing_procurement_data and len(missing_procurement_data) > 0:
+                try:
+                    missing_df = pd.DataFrame({'Missing_Data': missing_procurement_data})
+                    
+                    # Safely split the data - handle cases where ':' might not exist
+                    split_result = missing_df['Missing_Data'].str.split(':', expand=True, n=1)
+                    
+                    if split_result.shape[1] >= 2:
+                        missing_df['Component_ID'] = split_result[0].str.strip()
+                        missing_df['Reason'] = split_result[1].str.strip()
+                    else:
+                        # If split didn't produce two columns, use the whole string as Component_ID
+                        missing_df['Component_ID'] = split_result[0].str.strip()
+                        missing_df['Reason'] = 'Unknown reason'
+                    
+                    # Safely map descriptions
+                    if 'Component_ID' in results_df.columns and 'Description' in results_df.columns:
+                        desc_map = results_df.set_index('Component_ID')['Description'].to_dict()
+                        missing_df['Description'] = missing_df['Component_ID'].map(desc_map).fillna('')
+                    else:
+                        missing_df['Description'] = ''
+                    
+                    # Select only the columns we need (and that exist)
+                    output_cols = ['Component_ID', 'Description', 'Reason']
+                    available_cols = [c for c in output_cols if c in missing_df.columns]
+                    missing_df = missing_df[available_cols]
+                    
+                    missing_df.to_excel(writer, sheet_name='❌ Missing Data', index=False)
+                    print(f"✅ Created Missing Data sheet with {len(missing_df)} entries")
+                    
+                except Exception as e:
+                    print(f"⚠️ Warning: Could not create Missing Data sheet: {str(e)}")
+                    # Create a simple fallback sheet
+                    simple_df = pd.DataFrame({'Missing_Data': missing_procurement_data})
+                    simple_df.to_excel(writer, sheet_name='❌ Missing Data', index=False)
 
             # Apply formatting
             format_excel_output(writer, results_df, forecast_df, procurement_df, inventory_df,

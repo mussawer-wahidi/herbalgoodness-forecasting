@@ -24,6 +24,13 @@ import gspread
 from google.oauth2.service_account import Credentials
 from collections import defaultdict
 from typing import Dict, List, Tuple, Set, Optional
+# NEW: API-related imports
+from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, Field
+from typing import Optional, List, Dict, Any
+import uuid
+import threading
 
 warnings.filterwarnings('ignore')
 
@@ -6051,6 +6058,375 @@ def main():
         traceback.print_exc()
         return None, None
 
+# ==============================================================================
+# API LAYER (FastAPI)
+# ==============================================================================
+# This API layer runs alongside Streamlit when started with --api flag
+# Usage: python main_app.py --api
+# ==============================================================================
+
+api_app = FastAPI(
+    title="Herbal Goodness MRP/BOM API",
+    description="API for Material Requirements Planning and Bill of Materials Explosion",
+    version="1.0.0",
+    docs_url="/api/docs",
+    redoc_url="/api/redoc"
+)
+
+# CORS for ERP integration
+api_app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Restrict in production to your ERP domain
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# In-memory job storage (replace with Redis in production if needed)
+api_jobs_store: Dict[str, Dict[str, Any]] = {}
+
+# ------------------------------------------------------------------------------
+# Pydantic Models for Request/Response Validation
+# ------------------------------------------------------------------------------
+
+class BOMExplodeRequest(BaseModel):
+    request_id: Optional[str] = Field(default_factory=lambda: str(uuid.uuid4()))
+    sku_list: Optional[List[str]] = None
+    forecast_source: str = "google_sheets"
+    include_procurement: bool = True
+
+class JobResponse(BaseModel):
+    success: bool
+    job_id: str
+    status: str
+    poll_url: str
+    estimated_duration_seconds: int = 30
+
+class JobStatusResponse(BaseModel):
+    job_id: str
+    status: str
+    progress_percent: int
+    started_at: Optional[str] = None
+    completed_at: Optional[str] = None
+    result_url: Optional[str] = None
+    error: Optional[str] = None
+
+class HealthResponse(BaseModel):
+    status: str
+    version: str
+    google_sheets_connected: bool
+    google_drive_connected: bool
+
+class RequirementsResponse(BaseModel):
+    success: bool
+    generated_at: Optional[str] = None
+    job_id: Optional[str] = None
+    total_count: int = 0
+    summary: Optional[Dict[str, Any]] = None
+    requirements: List[Dict[str, Any]] = []
+
+# ------------------------------------------------------------------------------
+# API Wrapper Function for BOM Explosion
+# ------------------------------------------------------------------------------
+
+def api_run_bom_explosion() -> dict:
+    """
+    API-compatible wrapper for BOM explosion.
+    Returns structured dict instead of Excel buffer.
+    """
+    try:
+        # Call existing function
+        excel_buffer, filename = run_forecast_bom_analysis(gc_client=None)
+        
+        if excel_buffer is None:
+            return {"success": False, "error": "BOM analysis failed - no data returned"}
+        
+        # Parse Excel buffer to extract data for API response
+        excel_buffer.seek(0)
+        all_sheets = pd.read_excel(excel_buffer, sheet_name=None, engine="openpyxl")
+        
+        # Build structured response
+        result = {
+            "success": True,
+            "summary": {},
+            "requirements": [],
+            "urgent_reorders": []
+        }
+        
+        # Find MRP Requirements sheet (handle different possible names)
+        mrp_sheet_names = ["📦 MRP Requirements", "MRP_Requirements", "MRP Requirements"]
+        mrp_df = None
+        for name in mrp_sheet_names:
+            if name in all_sheets:
+                mrp_df = all_sheets[name]
+                break
+        
+        if mrp_df is not None:
+            # Clean up DataFrame for JSON serialization
+            mrp_df = mrp_df.fillna("")
+            result["requirements"] = mrp_df.to_dict(orient="records")
+            
+            # Build summary
+            urgent_count = len(mrp_df[mrp_df["Order_Status"].astype(str).str.contains("🔴", na=False)]) if "Order_Status" in mrp_df.columns else 0
+            soon_count = len(mrp_df[mrp_df["Order_Status"].astype(str).str.contains("🟡", na=False)]) if "Order_Status" in mrp_df.columns else 0
+            ok_count = len(mrp_df[mrp_df["Order_Status"].astype(str).str.contains("🟢", na=False)]) if "Order_Status" in mrp_df.columns else 0
+            
+            result["summary"] = {
+                "total_components": len(mrp_df),
+                "urgent_reorders": urgent_count,
+                "reorder_soon": soon_count,
+                "ok": ok_count,
+                "total_procurement_cost": float(mrp_df["Procurement_Cost"].sum()) if "Procurement_Cost" in mrp_df.columns else 0
+            }
+        
+        # Find Urgent Reorders sheet
+        urgent_sheet_names = ["🔴 Urgent Reorders", "Urgent_Reorders", "Urgent Reorders"]
+        for name in urgent_sheet_names:
+            if name in all_sheets:
+                urgent_df = all_sheets[name].fillna("")
+                result["urgent_reorders"] = urgent_df.to_dict(orient="records")
+                break
+        
+        return result
+        
+    except Exception as e:
+        import traceback
+        return {
+            "success": False, 
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }
+
+# ------------------------------------------------------------------------------
+# Background Task for Async BOM Explosion
+# ------------------------------------------------------------------------------
+
+def run_bom_explosion_task(job_id: str, request: BOMExplodeRequest):
+    """Background task that runs BOM explosion."""
+    try:
+        api_jobs_store[job_id]["status"] = "processing"
+        api_jobs_store[job_id]["progress_percent"] = 10
+        
+        # Run actual BOM explosion
+        result = api_run_bom_explosion()
+        
+        if result.get("success"):
+            api_jobs_store[job_id]["status"] = "completed"
+            api_jobs_store[job_id]["progress_percent"] = 100
+            api_jobs_store[job_id]["completed_at"] = datetime.now().isoformat() + "Z"
+            api_jobs_store[job_id]["result"] = result
+        else:
+            api_jobs_store[job_id]["status"] = "failed"
+            api_jobs_store[job_id]["error"] = result.get("error", "Unknown error")
+        
+    except Exception as e:
+        api_jobs_store[job_id]["status"] = "failed"
+        api_jobs_store[job_id]["error"] = str(e)
+
+# ------------------------------------------------------------------------------
+# API Endpoints
+# ------------------------------------------------------------------------------
+
+@api_app.get("/api/v1/health", response_model=HealthResponse, tags=["Health"])
+async def health_check():
+    """Check API health and connectivity status."""
+    return HealthResponse(
+        status="healthy",
+        version="1.0.0",
+        google_sheets_connected="gcp_service_account_sheets" in os.environ,
+        google_drive_connected="gcp_service_account_drive" in os.environ
+    )
+
+
+@api_app.post("/api/v1/bom/explode", response_model=JobResponse, tags=["BOM"])
+async def explode_bom(request: BOMExplodeRequest, background_tasks: BackgroundTasks):
+    """
+    Trigger BOM explosion asynchronously.
+    Returns job_id for status polling.
+    
+    **Example Request:**
+```json
+    {
+        "request_id": "my-unique-id-123",
+        "forecast_source": "google_sheets",
+        "include_procurement": true
+    }
+```
+    """
+    job_id = f"bom-{uuid.uuid4()}"
+    
+    # Check for idempotency (same request_id returns existing job)
+    for existing_job in api_jobs_store.values():
+        if existing_job.get("request_id") == request.request_id:
+            return JobResponse(
+                success=True,
+                job_id=existing_job["job_id"],
+                status=existing_job["status"],
+                poll_url=f"/api/v1/jobs/{existing_job['job_id']}",
+                estimated_duration_seconds=0
+            )
+    
+    # Create new job
+    api_jobs_store[job_id] = {
+        "job_id": job_id,
+        "request_id": request.request_id,
+        "status": "pending",
+        "progress_percent": 0,
+        "started_at": datetime.now().isoformat() + "Z",
+        "completed_at": None,
+        "result": None,
+        "error": None
+    }
+    
+    # Start background task
+    background_tasks.add_task(run_bom_explosion_task, job_id, request)
+    
+    return JobResponse(
+        success=True,
+        job_id=job_id,
+        status="pending",
+        poll_url=f"/api/v1/jobs/{job_id}",
+        estimated_duration_seconds=45
+    )
+
+
+@api_app.get("/api/v1/jobs/{job_id}", response_model=JobStatusResponse, tags=["Jobs"])
+async def get_job_status(job_id: str):
+    """
+    Get status of a running or completed job.
+    
+    **Status Values:**
+    - `pending`: Job queued but not started
+    - `processing`: Job currently running
+    - `completed`: Job finished successfully
+    - `failed`: Job encountered an error
+    """
+    if job_id not in api_jobs_store:
+        raise HTTPException(status_code=404, detail="Job not found")
+    
+    job = api_jobs_store[job_id]
+    return JobStatusResponse(
+        job_id=job["job_id"],
+        status=job["status"],
+        progress_percent=job["progress_percent"],
+        started_at=job["started_at"],
+        completed_at=job["completed_at"],
+        result_url=f"/api/v1/jobs/{job_id}/result" if job["status"] == "completed" else None,
+        error=job.get("error")
+    )
+
+
+@api_app.get("/api/v1/jobs/{job_id}/result", tags=["Jobs"])
+async def get_job_result(job_id: str):
+    """
+    Get results of a completed job.
+    
+    Returns full MRP requirements data including:
+    - Summary statistics
+    - All component requirements
+    - Urgent reorders list
+    """
+    if job_id not in api_jobs_store:
+        raise HTTPException(status_code=404, detail="Job not found")
+    
+    job = api_jobs_store[job_id]
+    
+    if job["status"] == "failed":
+        raise HTTPException(
+            status_code=500,
+            detail=f"Job failed: {job.get('error', 'Unknown error')}"
+        )
+    
+    if job["status"] != "completed":
+        raise HTTPException(
+            status_code=400,
+            detail=f"Job not completed. Current status: {job['status']}"
+        )
+    
+    return {
+        "job_id": job_id,
+        "completed_at": job["completed_at"],
+        **job["result"]
+    }
+
+
+@api_app.get("/api/v1/requirements/latest", response_model=RequirementsResponse, tags=["Requirements"])
+async def get_latest_requirements(
+    status: Optional[str] = None,
+    min_cost: Optional[float] = None
+):
+    """
+    Get latest MRP requirements from most recent completed BOM run.
+    
+    **Query Parameters:**
+    - `status`: Filter by order status (`urgent_reorder`, `reorder_soon`, `ok`)
+    - `min_cost`: Minimum procurement cost threshold
+    
+    **Example:** `/api/v1/requirements/latest?status=urgent_reorder&min_cost=1000`
+    """
+    # Find the most recent completed BOM job
+    completed_jobs = [
+        j for j in api_jobs_store.values()
+        if j["status"] == "completed" and j.get("result")
+    ]
+    
+    if not completed_jobs:
+        return RequirementsResponse(
+            success=False,
+            total_count=0,
+            requirements=[]
+        )
+    
+    # Get most recent
+    latest_job = max(completed_jobs, key=lambda j: j["completed_at"] or "")
+    result = latest_job["result"]
+    
+    requirements = result.get("requirements", [])
+    
+    # Apply filters
+    if status:
+        status_map = {"urgent_reorder": "🔴", "reorder_soon": "🟡", "ok": "🟢"}
+        filter_emoji = status_map.get(status, "")
+        if filter_emoji:
+            requirements = [
+                r for r in requirements 
+                if filter_emoji in str(r.get("Order_Status", ""))
+            ]
+    
+    if min_cost is not None:
+        requirements = [
+            r for r in requirements 
+            if float(r.get("Procurement_Cost", 0) or 0) >= min_cost
+        ]
+    
+    return RequirementsResponse(
+        success=True,
+        generated_at=latest_job["completed_at"],
+        job_id=latest_job["job_id"],
+        total_count=len(requirements),
+        summary=result.get("summary"),
+        requirements=requirements
+    )
+
+
+@api_app.get("/api/v1/bom/run-sync", tags=["BOM"])
+async def run_bom_sync():
+    """
+    Run BOM explosion synchronously (blocking).
+    Use this for testing or when you need immediate results.
+    
+    **Warning:** This may take 30-60 seconds. For production, use `/api/v1/bom/explode` instead.
+    """
+    result = api_run_bom_explosion()
+    
+    if not result.get("success"):
+        raise HTTPException(
+            status_code=500,
+            detail=result.get("error", "BOM explosion failed")
+        )
+    
+    return result
+
 ## Streamlit UI
 # --- Import required modules ---
 
@@ -6901,6 +7277,24 @@ st.markdown("""
 """, unsafe_allow_html=True)  # <-- closing triple quotes AND parenthesis
 
 st.markdown('</div>', unsafe_allow_html=True)
+
+# ==============================================================================
+# APPLICATION ENTRY POINT
+# ==============================================================================
+
+if __name__ == "__main__":
+    import sys
+    
+    if "--api" in sys.argv:
+        # Run FastAPI server
+        print("🚀 Starting API Server...")
+        print("📖 API Documentation: http://localhost:8000/api/docs")
+        import uvicorn
+        uvicorn.run(api_app, host="0.0.0.0", port=8000)
+    else:
+        # Streamlit runs automatically when executed with `streamlit run`
+        print("ℹ️  To run API server, use: python main_app.py --api")
+
 
 
 

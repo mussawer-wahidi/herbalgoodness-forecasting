@@ -6427,253 +6427,856 @@ async def run_bom_sync():
     
     return result
 
-# --- Modern Streamlit UI for Herbal MRP & BOM App ---
-# Drop-in replacement UI layer – all business logic preserved
-# Palette: warm earth + cool tech accents, clean typography, card-based layout
+## Streamlit UI
+# --- Import required modules ---
 
-import streamlit as st
-import time, datetime, os
-
+# --- Set page config ---
 st.set_page_config(
-    page_title="Herbal Goodness | MRP & Forecast",
+    page_title="Herbal Goodness | AI Forecasting", 
     layout="wide",
-    page_icon="🌿",
+    page_icon="🔮"
 )
 
-# ------------------------------------------------------------------
-# 1. GLOBAL STYLES
-# ------------------------------------------------------------------
+# --- Innovative Digital Styling ---
 st.markdown("""
-<style>
-/* Google fonts */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    <style>
+        /* Import futuristic fonts */
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600&display=swap');
+        
+        /* Global reset and base styling */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        /* Main app background with animated gradient */
+        .stApp {
+            background: linear-gradient(135deg, 
+                #0a0f1c 0%, 
+                #1a2332 25%, 
+                #0d2439 50%, 
+                #1e3a52 75%, 
+                #0f1419 100%);
+            background-size: 400% 400%;
+            animation: gradientShift 15s ease infinite;
+            min-height: 100vh;
+            position: relative;
+        }
+        
+        /* Animated background */
+        @keyframes gradientShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        
+        /* Floating particles effect */
+        .stApp::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                radial-gradient(circle at 20% 20%, rgba(64, 224, 208, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(135, 206, 235, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 40% 60%, rgba(144, 238, 144, 0.05) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+        
+        /* Main content container */
+        .main-content {
+            position: relative;
+            z-index: 1;
+        }
+        
+        /* Futuristic header with glassmorphism */
+        .header-container {
+            background: linear-gradient(135deg, 
+                rgba(64, 224, 208, 0.1) 0%, 
+                rgba(135, 206, 235, 0.15) 50%, 
+                rgba(144, 238, 144, 0.1) 100%);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            padding: 3rem;
+            margin: 2rem 0;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 
+                0 8px 32px rgba(0, 0, 0, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        }
+        
+        .header-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, 
+                transparent, 
+                rgba(64, 224, 208, 0.1), 
+                transparent);
+            animation: shimmer 3s infinite;
+        }
+        
+        @keyframes shimmer {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+        
+        /* Logo and branding section */
+        .brand-section {
+            display: flex;
+            align-items: center;
+            gap: 2rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .logo-placeholder {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #40e0d0, #87ceeb);
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+            box-shadow: 0 8px 32px rgba(64, 224, 208, 0.3);
+            animation: float 3s ease-in-out infinite;
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+        
+        .brand-text {
+            flex: 1;
+        }
+        
+        .company-name {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 3.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #40e0d0, #87ceeb, #90ee90);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin: 0;
+            text-shadow: 0 0 30px rgba(64, 224, 208, 0.5);
+        }
+        
+        .tagline {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.1rem;
+            color: rgba(255, 255, 255, 0.7);
+            margin-top: 0.5rem;
+            letter-spacing: 1px;
+        }
+        
+        /* Holographic cards */
+        .holo-card {
+            background: linear-gradient(135deg, 
+                rgba(255, 255, 255, 0.05) 0%, 
+                rgba(64, 224, 208, 0.1) 50%, 
+                rgba(135, 206, 235, 0.05) 100%);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 2.5rem;
+            margin: 2rem 0;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.4s cubic-bezier(0.23, 1, 0.320, 1);
+            box-shadow: 
+                0 10px 40px rgba(0, 0, 0, 0.2),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        }
+        
+        .holo-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 
+                0 20px 60px rgba(0, 0, 0, 0.3),
+                0 0 50px rgba(64, 224, 208, 0.2);
+            border-color: rgba(64, 224, 208, 0.3);
+        }
+        
+        .holo-card::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, 
+                transparent, 
+                rgba(64, 224, 208, 0.8), 
+                rgba(135, 206, 235, 0.8), 
+                transparent);
+        }
+        
+        /* Section headers with neon effect */
+        .section-title {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.8rem;
+            font-weight: 600;
+            color: #ffffff;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            position: relative;
+        }
+        
+        .section-title::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: linear-gradient(90deg, 
+                rgba(64, 224, 208, 0.5), 
+                transparent);
+        }
+        
+        /* Futuristic buttons */
+        .quantum-btn {
+            background: linear-gradient(135deg, 
+                rgba(64, 224, 208, 0.2) 0%, 
+                rgba(135, 206, 235, 0.3) 50%, 
+                rgba(144, 238, 144, 0.2) 100%);
+            border: 2px solid transparent;
+            background-clip: padding-box;
+            border-radius: 16px;
+            padding: 1.2rem 2.5rem;
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #ffffff;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.4s cubic-bezier(0.23, 1, 0.320, 1);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: 
+                0 8px 32px rgba(64, 224, 208, 0.2),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.75rem;
+        }
+        
+        .quantum-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, 
+                transparent, 
+                rgba(255, 255, 255, 0.2), 
+                transparent);
+            transition: left 0.6s;
+        }
+        
+        .quantum-btn:hover {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 
+                0 15px 50px rgba(64, 224, 208, 0.4),
+                0 0 30px rgba(135, 206, 235, 0.3);
+            border-color: rgba(64, 224, 208, 0.6);
+        }
+        
+        .quantum-btn:hover::before {
+            left: 100%;
+        }
+        
+        /* Secondary action buttons */
+        .neural-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(64, 224, 208, 0.3);
+            border-radius: 12px;
+            padding: 1rem 1.8rem;
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: #40e0d0;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.23, 1, 0.320, 1);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            position: relative;
+            overflow: hidden;
+            width: 100%;
+        }
+        
+        .neural-btn:hover {
+            background: linear-gradient(135deg, 
+                rgba(64, 224, 208, 0.1), 
+                rgba(135, 206, 235, 0.1));
+            border-color: rgba(64, 224, 208, 0.8);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(64, 224, 208, 0.2);
+            color: #ffffff;
+            text-decoration: none;
+        }
+        
+        /* Override Streamlit button styles */
+        .stButton > button {
+            background: linear-gradient(135deg, 
+                rgba(64, 224, 208, 0.2) 0%, 
+                rgba(135, 206, 235, 0.3) 50%, 
+                rgba(144, 238, 144, 0.2) 100%) !important;
+            border: 2px solid rgba(64, 224, 208, 0.4) !important;
+            border-radius: 16px !important;
+            padding: 1.2rem 2.5rem !important;
+            font-family: 'Space Grotesk', sans-serif !important;
+            font-size: 1.1rem !important;
+            font-weight: 600 !important;
+            color: #ffffff !important;
+            text-transform: uppercase !important;
+            letter-spacing: 1px !important;
+            transition: all 0.4s cubic-bezier(0.23, 1, 0.320, 1) !important;
+            width: 100% !important;
+            box-shadow: 0 8px 32px rgba(64, 224, 208, 0.2) !important;
+        }
+        
+        .stButton > button:hover {
+            transform: translateY(-3px) scale(1.02) !important;
+            box-shadow: 0 15px 50px rgba(64, 224, 208, 0.4) !important;
+            border-color: rgba(64, 224, 208, 0.8) !important;
+        }
+        
+        /* Download button styling */
+        .stDownloadButton > button {
+            background: rgba(255, 255, 255, 0.05) !important;
+            border: 1px solid rgba(64, 224, 208, 0.3) !important;
+            border-radius: 12px !important;
+            padding: 1rem 1.8rem !important;
+            font-family: 'Space Grotesk', sans-serif !important;
+            font-size: 0.95rem !important;
+            font-weight: 500 !important;
+            color: #40e0d0 !important;
+            transition: all 0.3s cubic-bezier(0.23, 1, 0.320, 1) !important;
+            width: 100% !important;
+        }
+        
+        .stDownloadButton > button:hover {
+            background: linear-gradient(135deg, 
+                rgba(64, 224, 208, 0.1), 
+                rgba(135, 206, 235, 0.1)) !important;
+            border-color: rgba(64, 224, 208, 0.8) !important;
+            transform: translateY(-2px) !important;
+            box-shadow: 0 10px 30px rgba(64, 224, 208, 0.2) !important;
+            color: #ffffff !important;
+        }
+        
+        /* Progress bar styling */
+        .stProgress > div > div > div > div {
+            background: linear-gradient(90deg, 
+                #40e0d0 0%, 
+                #87ceeb 50%, 
+                #90ee90 100%) !important;
+            box-shadow: 0 0 20px rgba(64, 224, 208, 0.5) !important;
+        }
+        
+        /* Success messages */
+        .stSuccess {
+            background: linear-gradient(135deg, 
+                rgba(144, 238, 144, 0.1), 
+                rgba(64, 224, 208, 0.1)) !important;
+            border: 1px solid rgba(144, 238, 144, 0.3) !important;
+            border-radius: 12px !important;
+            color: #90ee90 !important;
+            backdrop-filter: blur(10px) !important;
+        }
+        
+        /* Status text styling */
+        .status-text {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            color: rgba(64, 224, 208, 0.8);
+            text-align: center;
+            margin: 1rem 0;
+            letter-spacing: 0.5px;
+        }
+        
+        /* Grid layout for action buttons */
+        .action-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+        
+        /* Descriptive text styling */
+        .description-text {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.1rem;
+            color: rgba(255, 255, 255, 0.7);
+            line-height: 1.7;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+        
+        /* Data visualization preview */
+        .viz-preview {
+            background: linear-gradient(135deg, 
+                rgba(64, 224, 208, 0.05), 
+                rgba(135, 206, 235, 0.05));
+            border: 1px solid rgba(64, 224, 208, 0.2);
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+            text-align: center;
+        }
+        
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .company-name {
+                font-size: 2.5rem;
+            }
+            .brand-section {
+                flex-direction: column;
+                text-align: center;
+            }
+            .logo-placeholder {
+                width: 60px;
+                height: 60px;
+                font-size: 2rem;
+            }
+            .holo-card {
+                padding: 1.5rem;
+                margin: 1rem 0;
+            }
+            .action-grid {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+        }
+        
+        /* Hide Streamlit elements */
+        #MainMenu {visibility: hidden;}
+        footer {visibility: hidden;}
+        header {visibility: hidden;}
+        .stDeployButton {display: none;}
+    </style>
+""", unsafe_allow_html=True)
 
-/* Root tokens */
-:root{
-    --bg:#f8fafc;
-    --surface:#ffffff;
-    --primary:#047857;
-    --primary-light:#a7f3d0;
-    --accent:#0891b2;
-    --muted:#64748b;
-    --text:#111827;
-    --success:#10b981;
-    --warning:#f59e0b;
-    --error:#ef4444;
-}
+# --- Main Content Container ---
+st.markdown('<div class="main-content">', unsafe_allow_html=True)
 
-/* Global resets */
-html,body,stApp{
-    background:var(--bg);
-    font-family:'Inter',sans-serif;
-    color:var(--text);
-}
+# --- Futuristic Header with Logo ---
+header_col1, header_col2 = st.columns([1, 5])
 
-/* Utility */
-.card{
-    background:var(--surface);
-    border-radius:12px;
-    padding:2rem;
-    box-shadow:0 4px 12px rgba(0,0,0,.05);
-    margin-bottom:1.5rem;
-}
-.section-title{
-    font-size:1.25rem;
-    font-weight:600;
-    margin-bottom:.75rem;
-    color:var(--primary);
-}
-.subtitle{
-    font-size:.9rem;
-    color:var(--muted);
-    margin-bottom:1.5rem;
-}
+with header_col1:
+    # Logo section - replace the path with your actual logo file
+    try:
 
-/* Buttons */
-.btn-primary{
-    background:var(--primary);
-    color:#fff;
-    border:none;
-    border-radius:8px;
-    padding:.75rem 1.5rem;
-    font-weight:500;
-    transition:.2s;
-}
-.btn-primary:hover{
-    background:#065f46;
-}
-.btn-secondary{
-    background:transparent;
-    color:var(--primary);
-    border:1px solid var(--primary);
-    border-radius:8px;
-    padding:.75rem 1.5rem;
-    font-weight:500;
-    text-decoration:none;
-    transition:.2s;
-}
-.btn-secondary:hover{
-    background:var(--primary-light);
-}
+        #BASE_DIR = os.path.dirname(__file__)
+        logo_path = os.path.join(BASE_DIR, "logo", "herbal-logo.avif")
+        st.image(logo_path, width=200)
 
-/* Progress */
-.stProgress > div > div > div > div{
-    background:var(--primary);
-}
-.stSpinner > div{
-    color:var(--primary);
-}
+    except:
+        st.markdown("""
+            <div style="width: 80px; height: 80px; background: linear-gradient(135deg, #40e0d0, #87ceeb); 
+                        border-radius: 20px; display: flex; align-items: center; justify-content: center; 
+                        font-size: 2.5rem; box-shadow: 0 8px 32px rgba(64, 224, 208, 0.3);">
+                🌿
+            </div>
+        """, unsafe_allow_html=True)
 
-/* Hide streamlit chrome */
-#MainMenu,footer,header,.stDeployButton{display:none;}
-</style>
-""",unsafe_allow_html=True)
+with header_col2:
+    st.markdown("""
+        <div style="padding-left: 2rem;">
+            <h1 class="company-name">HERBAL GOODNESS</h1>
+            <p class="tagline">// INVENTORY INTELLIGENCE SYSTEM //</p>
+        </div>
+    """, unsafe_allow_html=True)
 
-# ------------------------------------------------------------------
-# 2. HEADER
-# ------------------------------------------------------------------
-with st.container():
-    c1,c2=st.columns([1,5])
-    with c1:
-        st.image(os.path.join(BASE_DIR,"logo","herbal-logo.avif"),width=140)
-    with c2:
-        st.markdown("# **Herbal Goodness**")
-        st.markdown("**Smart MRP & Forecasting Suite**")
-    st.markdown("---")
-
-# ------------------------------------------------------------------
-# 3. SESSION STATE (unchanged)
-# ------------------------------------------------------------------
+# --- Session state setup ---
 if "excel_buffer" not in st.session_state:
-    st.session_state.excel_buffer=None
-    st.session_state.drive_file_id=None
-    st.session_state.file_downloaded=False
-    # BOM
-    st.session_state.bom_excel_buffer=None
-    st.session_state.bom_filename=None
-    st.session_state.bom_analysis_complete=False
-    st.session_state.bom_sheets_url=None
+    st.session_state.excel_buffer = None
+   # st.session_state.filename = None
+    st.session_state.drive_file_id = None
+    st.session_state.file_downloaded = False
+    # BOM Analysis session state
+    st.session_state.bom_excel_buffer = None
+    st.session_state.bom_filename = None
+    st.session_state.bom_analysis_complete = False
+    # MODIFY: Add BOM Google Sheets URL to session state
+    st.session_state.bom_sheets_url = None
 
-# ------------------------------------------------------------------
-# 4. FORECAST ENGINE
-# ------------------------------------------------------------------
-with st.container():
-    st.markdown('<div class="card">',unsafe_allow_html=True)
-    st.markdown('<div class="section-title">🔮 Forecast Engine</div>',unsafe_allow_html=True)
-    st.markdown('<div class="subtitle">Generate demand forecasts across all sales channels.</div>',unsafe_allow_html=True)
+# --- AI Forecast Engine Section ---
+st.markdown("""
+    <div class="holo-card">
+        <h2 class="section-title">🔮 ENHANCED FORECAST ENGINE</h2>
+        <p class="description-text">
+            Unleash the power of quantum analytics and machine learning algorithms 
+            to predict inventory patterns with unprecedented accuracy. Our neural networks 
+            analyze multidimensional data streams in real-time.
+        </p>
+    </div>
+""", unsafe_allow_html=True)
 
-    if st.button("🚀 Run Forecast Analysis",type="primary",use_container_width=True):
-        start=time.time()
-        with st.spinner("Preparing forecast..."):
-            bar=st.progress(0)
-            status=st.empty()
-            stages=[
-                "Collecting data...",
-                "Reading Google Sheets...",
-                "Mapping SKUs...",
-                "Applying algorithms...",
-                "Syncing channels...",
-                "Building reports..."
-            ]
-            for i in range(100):
-                time.sleep(.03)
-                bar.progress(i+1)
-                status.text(stages[min(i//17,len(stages)-1)])
-            bar.empty();status.empty()
+# Create containers for dynamic content
+button_container = st.container()
+progress_container = st.container()
+result_container = st.container()
 
-            try:
-                excel_buffer,filename,drive_id=main()
+with button_container:
+    if st.button("🚀 INITIATE FORECASTING ANALYSIS", key="generate_btn"):
+
+        start_time = time.time()  # Track when button was clicked
+
+        with progress_container:
+            with st.spinner("⚡ Generating Forecast Analysis..."):
+                progress_bar = st.progress(0)
+                status_text = st.empty()
+
+                neural_stages = [
+                    "⚡ Initializing Data Collection...",
+                    "🧠 Sourcing Google Sheets Data...",
+                    "📊 Mapping the SKUs...",
+                    "🔍 Moving to The Forecast Algorithms...",
+                    "⚙️ Optimizing Prediction Algorithms...",
+                    "🌐 Synchronizing Multi-Channel Data...",
+                    "✨ Generating Intelligence Reports...",
+                ]
+
+                # Progress simulation before running main()
+                for i in range(40):  # Half the bar before main() runs
+                    stage_index = i // 6
+                    if stage_index < len(neural_stages):
+                        status_text.markdown(
+                            f'<p class="status-text">{neural_stages[stage_index]}</p>',
+                            unsafe_allow_html=True
+                        )
+                    time.sleep(0.05)
+                    progress_bar.progress(i + 1)
+
+                # Replace your current Streamlit button handler with this enhanced version:
+                
+                try:
+                    # Add detailed logging before calling main()
+                    st.info("🔄 Starting forecast analysis...")
+                    
+                    # Call main() with better error capture
+                    result = main()
+                    
+                    
+                    # Check for None returns (error cases)
+                    if result is None or (isinstance(result, tuple) and result[0] is None):
+                        st.error("❌ Forecast Analysis Failed. main() returned None - check the detailed logs below.")
+                        
+                        # Try to get more details from the logs
+                        st.subheader("🔍 Debugging Information")
+                        st.write("The main() function returned None, indicating an error occurred.")
+                        st.write("Common causes:")
+                        st.write("- File not found (CSV files missing)")
+                        st.write("- Google Sheets credentials issue")
+                        st.write("- Memory or timeout limits exceeded")
+                        st.write("- Network connectivity issues")
+                        
+                        st.stop()
+                    
+                    # Unpack the result
+                    if isinstance(result, tuple) and len(result) == 3:
+                        excel_buffer, filename, drive_file_id = result
+                    else:
+                        st.error(f"❌ main() returned unexpected format: {result}")
+                        st.stop()
+                        
+                except Exception as e:
+                    import traceback
+                    error_traceback = traceback.format_exc()
+                    
+                    st.error(f"❌ Forecast Analysis crashed: {type(e).__name__} - {str(e)}")
+                    
+                    # Show detailed error information
+                    st.subheader("🔍 Detailed Error Information")
+                    st.code(error_traceback)
+                    
+                    # Show system information that might help debug
+                    st.subheader("💻 System Information")
+                    try:
+                        import os, sys
+                        st.write(f"Python version: {sys.version}")
+                        st.write(f"Working directory: {os.getcwd()}")
+                        st.write(f"Environment variables:")
+                        for key in ['GOOGLE_SHEETS_CREDENTIALS', 'gcp_service_account_sheets']:
+                            if key in os.environ:
+                                st.write(f"  {key}: {'SET' if os.environ[key] else 'EMPTY'}")
+                            else:
+                                st.write(f"  {key}: NOT SET")
+                    except Exception as sys_e:
+                        st.write(f"Could not get system info: {sys_e}")
+                    
+                    st.stop()
+                # Finish progress bar
+                for i in range(40, 100):
+                    stage_index = i // 14
+                    if stage_index < len(neural_stages):
+                        status_text.markdown(
+                            f'<p class="status-text">{neural_stages[stage_index]}</p>',
+                            unsafe_allow_html=True
+                        )
+                    time.sleep(0.02)
+                    progress_bar.progress(i + 1)
+
+                # Clear progress UI
+                progress_bar.empty()
+                status_text.empty()
+
+                # Show results
                 if excel_buffer:
-                    st.session_state.excel_buffer=excel_buffer
-                    st.session_state.filename=filename
-                    st.session_state.drive_file_id=drive_id
-                    st.success(f"✅ Forecast completed in {time.strftime('%M:%S',time.gmtime(time.time()-start))}")
-                else:
-                    st.error("Forecast failed – check logs.")
-            except Exception as e:
-                st.error(f"Error: {e}")
-    st.markdown('</div>',unsafe_allow_html=True)
+                    st.session_state.excel_buffer = excel_buffer
+                    st.session_state.filename = filename
+                    st.session_state.drive_file_id = drive_file_id
 
-# ------------------------------------------------------------------
-# 5. FORECAST RESULTS
-# ------------------------------------------------------------------
+                    end_time = time.time()
+                    duration_sec = end_time - start_time
+                    duration_str = time.strftime("%M:%S", time.gmtime(duration_sec))
+                    timestamp_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+                    with result_container:
+                        st.success(
+                            f"✅ FORECAST ANALYSIS COMPLETED | REPORTS READY!\n\n"
+                            f"📅 Generated at: **{timestamp_str}**\n"
+                            f"⏱ Duration taken for analysis: **{duration_str}**"
+                        )
+                else:
+                    with result_container:
+                        st.error("❌ Forecast Analysis Failed. Please try again.")
+
+
+# --- Neural Access Portal ---
 if st.session_state.excel_buffer:
-    st.markdown('<div class="card">',unsafe_allow_html=True)
-    st.markdown('<div class="section-title">📥 Forecast Results</div>',unsafe_allow_html=True)
-    c1,c2,c3=st.columns(3)
-    with c1:
-        st.download_button("📥 Download Excel",
+    st.markdown("""
+        <div class="holo-card">
+            <h2 class="section-title">🌐 INTELLIGENCE ACCESS PORTAL</h2>
+            <p class="description-text">
+                Your enhanced forecast is now available across multiple dimensional platforms. 
+                Access your intelligence reports through various interfaces for maximum operational efficiency.
+            </p>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    col1, col2, col3 = st.columns(3, gap="large")
+
+    with col1:
+        if st.download_button(
+            label="📥 DOWNLOAD EXCEL WORKBOOK" if not st.session_state.file_downloaded else "✅ WORKBOOK DOWNLOADED",
             data=st.session_state.excel_buffer.getvalue(),
             file_name=st.session_state.filename,
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            use_container_width=True)
-    with c2:
-        st.markdown(f'<a class="btn-secondary" href="https://docs.google.com/spreadsheets/d/{st.session_state.drive_file_id}/edit" target="_blank">☁️ Google Sheets</a>',unsafe_allow_html=True)
-    with c3:
-        st.markdown('<a class="btn-secondary" href="https://lookerstudio.google.com/reporting/9525ae1e-6f0e-4b5f-ae50-ca84312b76fd/page/br5SF" target="_blank">📊 Looker Dashboard</a>',unsafe_allow_html=True)
-    st.markdown('</div>',unsafe_allow_html=True)
+            on_click=lambda: st.session_state.update({"file_downloaded": True}),
+            use_container_width=True,
+            help="Download forecast intelligence in Excel format"
+        ):
+            pass
 
-# ------------------------------------------------------------------
-# 6. BOM FORECAST
-# ------------------------------------------------------------------
-with st.container():
-    st.markdown('<div class="card">',unsafe_allow_html=True)
-    st.markdown('<div class="section-title">🧬 Forecast BOM Explosion</div>',unsafe_allow_html=True)
-    st.markdown('<div class="subtitle">Multi-level BOM explosion with procurement recommendations.</div>',unsafe_allow_html=True)
 
-    if st.button("🧬 Run BOM Analysis",type="primary",use_container_width=True):
-        bom_start=time.time()
-        with st.spinner("Exploding BOM..."):
-            bar=st.progress(0);status=st.empty()
-            stages=["Fetching BOM...","Loading mappings...","Retrieving forecast...","Exploding levels...","Calculating ROP...","Creating MRP..."]
-            for i in range(100):
-                time.sleep(.025)
-                bar.progress(i+1)
-                status.text(stages[min(i//17,len(stages)-1)])
-            bar.empty();status.empty()
-            try:
-                bom_buffer,bom_name=run_forecast_bom_analysis(gc_client=None)
-                if bom_buffer:
-                    st.session_state.bom_excel_buffer=bom_buffer
-                    st.session_state.bom_filename=bom_name
-                    st.session_state.bom_analysis_complete=True
-                    st.session_state.bom_sheets_url="https://docs.google.com/spreadsheets/d/1izbZowu4FEiwiVwKWIiRz066aWWOII5u/edit?gid=1741087285#gid=1741087285"
-                    st.success(f"✅ BOM completed in {time.strftime('%M:%S',time.gmtime(time.time()-bom_start))}")
+    with col2:
+        if st.session_state.drive_file_id:
+            file_id = st.session_state.drive_file_id
+            sheets_link = f"https://docs.google.com/spreadsheets/d/{file_id}/edit"
+            st.markdown(f"""
+                <a href="{sheets_link}" target="_blank" class="neural-btn">
+                    ☁️ GOOGLE SHEET VIEW
+                </a>
+            """, unsafe_allow_html=True)
+
+    with col3:
+        looker_url = "https://lookerstudio.google.com/reporting/9525ae1e-6f0e-4b5f-ae50-ca84312b76fd/page/br5SF"
+        st.markdown(f"""
+            <a href="{looker_url}" target="_blank" class="neural-btn">
+                🗠 LOOKER DASHBOARD
+            </a>
+        """, unsafe_allow_html=True)
+
+# NEW: Forecast BOM Analysis Section
+# PLACEMENT: After the "Intelligence Access Portal" section, before "Data Visualization Preview"
+
+# --- Forecast BOM Analysis Section ---
+st.markdown("""
+    <div class="holo-card">
+        <h2 class="section-title">🧬 FORECAST BOM EXPLOSION</h2>
+        <p class="description-text">
+            Execute multi-level Bill of Materials explosion using real forecast data. 
+            Calculate component requirements, ROP, and procurement needs across your entire product hierarchy.
+        </p>
+    </div>
+""", unsafe_allow_html=True)
+
+bom_button_container = st.container()
+bom_progress_container = st.container()
+bom_result_container = st.container()
+
+with bom_button_container:
+    if st.button("🧬 INITIATE FORECAST BOM ANALYSIS", key="bom_generate_btn"):
+        
+        bom_start_time = time.time()
+        
+        with bom_progress_container:
+            with st.spinner("⚡ Running BOM Explosion Analysis..."):
+                bom_progress_bar = st.progress(0)
+                bom_status_text = st.empty()
+                
+                bom_stages = [
+                    "⚡ Initializing BOM Data Collection...",
+                    "🧠 Fetching Bill of Materials...",
+                    "📊 Loading SKU-UPC Mappings...",
+                    "🔍 Retrieving Forecast Data...",
+                    "⚙️ Exploding Multi-Level BOM...",
+                    "🌐 Calculating ROP & Procurement...",
+                    "✨ Generating MRP Reports...",
+                ]
+                
+                # Progress simulation before running BOM analysis
+                for i in range(40):
+                    stage_index = i // 6
+                    if stage_index < len(bom_stages):
+                        bom_status_text.markdown(
+                            f'<p class="status-text">{bom_stages[stage_index]}</p>',
+                            unsafe_allow_html=True
+                        )
+                    time.sleep(0.03)
+                    bom_progress_bar.progress(i + 1)
+                
+                try:
+                    # Run the BOM analysis
+                    bom_result = run_forecast_bom_analysis(gc_client=None)
+                    
+                    if bom_result is None or bom_result[0] is None:
+                        st.error("❌ Forecast BOM Analysis Failed. Check logs for details.")
+                        bom_progress_bar.empty()
+                        bom_status_text.empty()
+                        st.stop()
+                    
+                    bom_excel_buffer, bom_filename = bom_result
+                    
+                except Exception as e:
+                    import traceback
+                    st.error(f"❌ Forecast BOM Analysis crashed: {type(e).__name__} - {str(e)}")
+                    st.code(traceback.format_exc())
+                    bom_progress_bar.empty()
+                    bom_status_text.empty()
+                    st.stop()
+                
+                # Finish progress bar
+                for i in range(40, 100):
+                    stage_index = i // 14
+                    if stage_index < len(bom_stages):
+                        bom_status_text.markdown(
+                            f'<p class="status-text">{bom_stages[stage_index]}</p>',
+                            unsafe_allow_html=True
+                        )
+                    time.sleep(0.015)
+                    bom_progress_bar.progress(i + 1)
+                
+                # Clear progress UI
+                bom_progress_bar.empty()
+                bom_status_text.empty()
+                
+                # Store results in session state
+                if bom_excel_buffer:
+                    st.session_state.bom_excel_buffer = bom_excel_buffer
+                    st.session_state.bom_filename = bom_filename
+                    st.session_state.bom_analysis_complete = True
+                    # MODIFY: Store BOM Google Sheets URL
+                    st.session_state.bom_sheets_url = "https://docs.google.com/spreadsheets/d/1izbZowu4FEiwiVwKWIiRz066aWWOII5u/edit?gid=1741087285#gid=1741087285"
+                    
+                    bom_end_time = time.time()
+                    bom_duration_sec = bom_end_time - bom_start_time
+                    bom_duration_str = time.strftime("%M:%S", time.gmtime(bom_duration_sec))
+                    bom_timestamp_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    
+                    with bom_result_container:
+                        st.success(
+                            f"✅ FORECAST BOM ANALYSIS COMPLETED!\n\n"
+                            f"📅 Generated at: **{bom_timestamp_str}**\n"
+                            f"⏱ Duration: **{bom_duration_str}**"
+                        )
                 else:
-                    st.error("BOM analysis failed.")
-            except Exception as e:
-                st.error(f"Error: {e}")
-    st.markdown('</div>',unsafe_allow_html=True)
+                    with bom_result_container:
+                        st.error("❌ Forecast BOM Analysis Failed. Please try again.")
 
-# ------------------------------------------------------------------
-# 7. BOM RESULTS
-# ------------------------------------------------------------------
+# --- BOM Download Section ---
 if st.session_state.bom_analysis_complete and st.session_state.bom_excel_buffer:
-    st.markdown('<div class="card">',unsafe_allow_html=True)
-    st.markdown('<div class="section-title">📥 BOM Results</div>',unsafe_allow_html=True)
-    c1,c2,c3=st.columns(3)
-    with c1:
-        st.download_button("📥 Download BOM Excel",
+    st.markdown("""
+        <div class="holo-card" style="margin-top: 1rem;">
+            <h3 class="section-title">📥 BOM ANALYSIS ACCESS PORTAL</h3>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    bom_col1, bom_col2, bom_col3 = st.columns(3, gap="large")
+    
+    with bom_col1:
+        st.download_button(
+            label="📥 DOWNLOAD BOM WORKBOOK",
             data=st.session_state.bom_excel_buffer.getvalue(),
             file_name=st.session_state.bom_filename,
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            use_container_width=True)
-    with c2:
-        st.markdown('<a class="btn-secondary" href="https://docs.google.com/spreadsheets/d/1izbZowu4FEiwiVwKWIiRz066aWWOII5u/edit?gid=1741087285#gid=1741087285" target="_blank">☁️ BOM Sheets</a>',unsafe_allow_html=True)
-    with c3:
-        st.markdown('<a class="btn-secondary" href="https://lookerstudio.google.com/reporting/9525ae1e-6f0e-4b5f-ae50-ca84312b76fd/page/p_xsi76rd4yd/edit?rm=minimal" target="_blank">📊 BOM Looker</a>',unsafe_allow_html=True)
-    st.markdown('</div>',unsafe_allow_html=True)
+            use_container_width=True,
+            help="Download BOM explosion and MRP analysis in Excel format"
+        )
+    
+    with bom_col2:
+        # NEW: Google Sheets button
+        bom_sheets_url = "https://docs.google.com/spreadsheets/d/1izbZowu4FEiwiVwKWIiRz066aWWOII5u/edit?gid=1741087285#gid=1741087285"
+        st.markdown(f"""
+            <a href="{bom_sheets_url}" target="_blank" class="neural-btn">
+                ☁️ OPEN BOM WORKBOOK (SHEETS)
+            </a>
+        """, unsafe_allow_html=True)
+    
+    with bom_col3:
+        # NEW: Looker Dashboard button
+        bom_looker_url = "https://lookerstudio.google.com/reporting/9525ae1e-6f0e-4b5f-ae50-ca84312b76fd/page/p_xsi76rd4yd/edit?rm=minimal"
+        st.markdown(f"""
+            <a href="{bom_looker_url}" target="_blank" class="neural-btn">
+                📊 OPEN BOM LOOKER DASHBOARD
+            </a>
+        """, unsafe_allow_html=True)
 
-# ------------------------------------------------------------------
-# 8. FOOTER
-# ------------------------------------------------------------------
-st.markdown("---")
-st.markdown(
-    '<div style="text-align:center;font-size:.8rem;color:var(--muted);">'
-    "Herbal Goodness © 2025 | SCMplify Consultancy | v4.0.1"
-    "</div>",
-    unsafe_allow_html=True
-)
+# --- Data Visualization Preview ---
+st.markdown("""
+    <div class="viz-preview">
+        <h3 style="color: #40e0d0; font-family: 'Space Grotesk', sans-serif; margin-bottom: 1rem;">
+            📈 PREDICTIVE VISUALIZATION MATRIX
+        </h3>
+        <p style="color: rgba(255, 255, 255, 0.6); font-family: 'JetBrains Mono', monospace; font-size: 0.9rem;">
+            Real-time quantum analytics • Multi-dimensional forecasting • Neural pattern recognition
+        </p>
+    </div>
+""", unsafe_allow_html=True)
+
+# --- Footer ---
+# --- Footer ---
+st.markdown("""
+    <div style="text-align: center; padding: 3rem 0 2rem 0; margin-top: 3rem; border-top: 1px solid rgba(64, 224, 208, 0.2);">
+        <p style="color: rgba(64, 224, 208, 0.8); font-family: 'JetBrains Mono', monospace; font-size: 0.9rem; margin: 0;">
+            HERBAL GOODNESS © 2025 | POWERED BY SCMplify CONSULTANCY | VERSION 4.0.1
+        </p>
+        <p style="color: rgba(255, 255, 255, 0.4); font-family: 'Space Grotesk', sans-serif; font-size: 0.8rem; margin: 0.5rem 0 0 0;">
+            Revolutionizing inventory management through intelligent forecasting
+        </p>
+    </div>
+""", unsafe_allow_html=True)  # <-- closing triple quotes AND parenthesis
+
+st.markdown('</div>', unsafe_allow_html=True)
 
 # ==============================================================================
 # APPLICATION ENTRY POINT

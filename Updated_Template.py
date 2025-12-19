@@ -7096,871 +7096,897 @@ async def clear_all_synced_data():
 
 # ==============================================================================
 # HERBAL GOODNESS - INVENTORY INTELLIGENCE SYSTEM
-# UI REDESIGN v5.0 - Modern Dark Tech Theme
+# ENHANCED UI v5.1 - Improved Original Theme
 # ==============================================================================
-# This file contains ONLY the Streamlit UI section replacement
+# This file contains the ENHANCED Streamlit UI section
+# Keep your existing theme but with improved components
 # Replace everything from "## Streamlit UI" comment to the end of the file
 # ==============================================================================
 
-## Streamlit UI - REDESIGNED
+## Streamlit UI
 # --- Import required modules ---
 
 # --- Set page config ---
 st.set_page_config(
     page_title="Herbal Goodness | AI Forecasting", 
     layout="wide",
-    page_icon="🌿",
+    page_icon="🔮",
     initial_sidebar_state="expanded"
 )
 
-# ==============================================================================
-# CUSTOM CSS - MODERN DARK TECH THEME
-# ==============================================================================
+# --- Enhanced Styling (Building on Original Theme) ---
 st.markdown("""
-<style>
-    /* =========================================================================
-       FONT IMPORTS
-       ========================================================================= */
-    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@300;400;500;600&family=Inter:wght@300;400;500;600;700&display=swap');
-    
-    /* =========================================================================
-       CSS VARIABLES - BRAND COLORS
-       ========================================================================= */
-    :root {
-        /* Primary brand color */
-        --brand-primary: #9fc327;
-        --brand-primary-rgb: 159, 195, 39;
-        --brand-primary-glow: rgba(159, 195, 39, 0.4);
+    <style>
+        /* Import futuristic fonts */
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600&display=swap');
         
-        /* Secondary colors */
-        --brand-secondary: #a49995;
-        --brand-dark: #0a0a0a;
-        --brand-darker: #050505;
-        
-        /* Accent colors for UI elements */
-        --accent-cyan: #00d4ff;
-        --accent-purple: #a855f7;
-        --accent-emerald: #10b981;
-        --accent-amber: #f59e0b;
-        --accent-rose: #f43f5e;
-        
-        /* Background gradients */
-        --bg-primary: linear-gradient(135deg, #0a0a0a 0%, #111111 50%, #0a0a0a 100%);
-        --bg-card: rgba(20, 20, 20, 0.8);
-        --bg-card-hover: rgba(30, 30, 30, 0.9);
-        
-        /* Text colors */
-        --text-primary: #ffffff;
-        --text-secondary: rgba(255, 255, 255, 0.7);
-        --text-muted: rgba(255, 255, 255, 0.5);
-        
-        /* Border colors */
-        --border-subtle: rgba(255, 255, 255, 0.08);
-        --border-accent: rgba(159, 195, 39, 0.3);
-        
-        /* Shadows */
-        --shadow-lg: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
-        --shadow-glow: 0 0 40px rgba(159, 195, 39, 0.15);
-    }
-    
-    /* =========================================================================
-       GLOBAL STYLES
-       ========================================================================= */
-    * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-    }
-    
-    .stApp {
-        background: var(--bg-primary);
-        background-attachment: fixed;
-        min-height: 100vh;
-    }
-    
-    /* Animated background grid */
-    .stApp::before {
-        content: '';
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background-image: 
-            linear-gradient(rgba(159, 195, 39, 0.03) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(159, 195, 39, 0.03) 1px, transparent 1px);
-        background-size: 50px 50px;
-        pointer-events: none;
-        z-index: 0;
-    }
-    
-    /* Ambient glow effects */
-    .stApp::after {
-        content: '';
-        position: fixed;
-        top: -50%;
-        left: -50%;
-        width: 200%;
-        height: 200%;
-        background: 
-            radial-gradient(circle at 20% 20%, rgba(159, 195, 39, 0.08) 0%, transparent 40%),
-            radial-gradient(circle at 80% 80%, rgba(0, 212, 255, 0.05) 0%, transparent 40%),
-            radial-gradient(circle at 50% 50%, rgba(168, 85, 247, 0.03) 0%, transparent 50%);
-        pointer-events: none;
-        z-index: 0;
-        animation: ambientPulse 15s ease-in-out infinite;
-    }
-    
-    @keyframes ambientPulse {
-        0%, 100% { opacity: 1; transform: scale(1); }
-        50% { opacity: 0.8; transform: scale(1.05); }
-    }
-    
-    /* =========================================================================
-       SIDEBAR STYLES
-       ========================================================================= */
-    [data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #0d0d0d 0%, #111111 50%, #0a0a0a 100%) !important;
-        border-right: 1px solid var(--border-subtle) !important;
-    }
-    
-    [data-testid="stSidebar"] > div:first-child {
-        background: transparent !important;
-        padding-top: 2rem;
-    }
-    
-    /* Sidebar navigation items */
-    .sidebar-nav-item {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-        padding: 1rem 1.25rem;
-        margin: 0.5rem 1rem;
-        border-radius: 12px;
-        background: transparent;
-        border: 1px solid transparent;
-        color: var(--text-secondary);
-        font-family: 'Outfit', sans-serif;
-        font-size: 0.95rem;
-        font-weight: 500;
-        cursor: pointer;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        text-decoration: none;
-    }
-    
-    .sidebar-nav-item:hover {
-        background: rgba(159, 195, 39, 0.1);
-        border-color: var(--border-accent);
-        color: var(--brand-primary);
-        transform: translateX(4px);
-    }
-    
-    .sidebar-nav-item.active {
-        background: linear-gradient(135deg, rgba(159, 195, 39, 0.15), rgba(159, 195, 39, 0.05));
-        border-color: var(--brand-primary);
-        color: var(--brand-primary);
-        box-shadow: 0 0 20px rgba(159, 195, 39, 0.1);
-    }
-    
-    .sidebar-nav-icon {
-        font-size: 1.25rem;
-        width: 24px;
-        text-align: center;
-    }
-    
-    /* =========================================================================
-       HEADER STYLES
-       ========================================================================= */
-    .main-header {
-        position: relative;
-        z-index: 10;
-        padding: 2rem 0;
-        margin-bottom: 2rem;
-    }
-    
-    .header-content {
-        display: flex;
-        align-items: center;
-        gap: 1.5rem;
-    }
-    
-    .header-logo {
-        width: 80px;
-        height: 80px;
-        border-radius: 20px;
-        overflow: hidden;
-        box-shadow: var(--shadow-glow);
-        border: 2px solid var(--border-accent);
-    }
-    
-    .header-logo img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-    }
-    
-    .header-text {
-        flex: 1;
-    }
-    
-    .brand-title {
-        font-family: 'Outfit', sans-serif;
-        font-size: 2.5rem;
-        font-weight: 800;
-        letter-spacing: -0.02em;
-        background: linear-gradient(135deg, var(--brand-primary) 0%, #c4e052 50%, var(--brand-primary) 100%);
-        background-size: 200% auto;
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-        animation: shimmerText 3s linear infinite;
-        margin: 0;
-        line-height: 1.1;
-    }
-    
-    @keyframes shimmerText {
-        0% { background-position: 0% center; }
-        100% { background-position: 200% center; }
-    }
-    
-    .brand-tagline {
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 0.85rem;
-        color: var(--text-muted);
-        margin-top: 0.5rem;
-        letter-spacing: 0.1em;
-        text-transform: uppercase;
-    }
-    
-    .header-status {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        padding: 0.5rem 1rem;
-        background: rgba(16, 185, 129, 0.1);
-        border: 1px solid rgba(16, 185, 129, 0.3);
-        border-radius: 100px;
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 0.75rem;
-        color: var(--accent-emerald);
-    }
-    
-    .status-dot {
-        width: 8px;
-        height: 8px;
-        background: var(--accent-emerald);
-        border-radius: 50%;
-        animation: pulse 2s ease-in-out infinite;
-    }
-    
-    @keyframes pulse {
-        0%, 100% { opacity: 1; transform: scale(1); }
-        50% { opacity: 0.5; transform: scale(0.8); }
-    }
-    
-    /* =========================================================================
-       CARD STYLES
-       ========================================================================= */
-    .glass-card {
-        position: relative;
-        background: var(--bg-card);
-        backdrop-filter: blur(20px);
-        -webkit-backdrop-filter: blur(20px);
-        border: 1px solid var(--border-subtle);
-        border-radius: 20px;
-        padding: 2rem;
-        margin-bottom: 1.5rem;
-        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-        overflow: hidden;
-    }
-    
-    .glass-card::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 1px;
-        background: linear-gradient(90deg, transparent, rgba(159, 195, 39, 0.5), transparent);
-        opacity: 0;
-        transition: opacity 0.4s;
-    }
-    
-    .glass-card:hover {
-        border-color: var(--border-accent);
-        transform: translateY(-2px);
-        box-shadow: var(--shadow-glow);
-    }
-    
-    .glass-card:hover::before {
-        opacity: 1;
-    }
-    
-    .card-header {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-        margin-bottom: 1.5rem;
-    }
-    
-    .card-icon {
-        width: 48px;
-        height: 48px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: linear-gradient(135deg, rgba(159, 195, 39, 0.2), rgba(159, 195, 39, 0.05));
-        border: 1px solid var(--border-accent);
-        border-radius: 14px;
-        font-size: 1.5rem;
-    }
-    
-    .card-title {
-        font-family: 'Outfit', sans-serif;
-        font-size: 1.25rem;
-        font-weight: 600;
-        color: var(--text-primary);
-        margin: 0;
-    }
-    
-    .card-subtitle {
-        font-family: 'Inter', sans-serif;
-        font-size: 0.85rem;
-        color: var(--text-muted);
-        margin-top: 0.25rem;
-    }
-    
-    .card-description {
-        font-family: 'Inter', sans-serif;
-        font-size: 0.95rem;
-        color: var(--text-secondary);
-        line-height: 1.7;
-        margin-bottom: 1.5rem;
-    }
-    
-    /* =========================================================================
-       BUTTON STYLES
-       ========================================================================= */
-    .stButton > button {
-        width: 100%;
-        padding: 1rem 2rem !important;
-        font-family: 'Outfit', sans-serif !important;
-        font-size: 1rem !important;
-        font-weight: 600 !important;
-        letter-spacing: 0.02em !important;
-        color: #000000 !important;
-        background: linear-gradient(135deg, var(--brand-primary) 0%, #b8d94a 100%) !important;
-        border: none !important;
-        border-radius: 14px !important;
-        cursor: pointer !important;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-        box-shadow: 0 4px 15px rgba(159, 195, 39, 0.3) !important;
-        position: relative;
-        overflow: hidden;
-    }
-    
-    .stButton > button:hover {
-        transform: translateY(-2px) !important;
-        box-shadow: 0 8px 30px rgba(159, 195, 39, 0.4) !important;
-    }
-    
-    .stButton > button:active {
-        transform: translateY(0) !important;
-    }
-    
-    /* Secondary button style */
-    .stDownloadButton > button {
-        width: 100%;
-        padding: 0.875rem 1.5rem !important;
-        font-family: 'Outfit', sans-serif !important;
-        font-size: 0.9rem !important;
-        font-weight: 500 !important;
-        color: var(--brand-primary) !important;
-        background: transparent !important;
-        border: 1px solid var(--border-accent) !important;
-        border-radius: 12px !important;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-    }
-    
-    .stDownloadButton > button:hover {
-        background: rgba(159, 195, 39, 0.1) !important;
-        border-color: var(--brand-primary) !important;
-        transform: translateY(-1px) !important;
-        box-shadow: 0 4px 20px rgba(159, 195, 39, 0.2) !important;
-    }
-    
-    /* Link button style */
-    .link-btn {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 0.5rem;
-        width: 100%;
-        padding: 0.875rem 1.5rem;
-        font-family: 'Outfit', sans-serif;
-        font-size: 0.9rem;
-        font-weight: 500;
-        color: var(--text-secondary);
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid var(--border-subtle);
-        border-radius: 12px;
-        text-decoration: none;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-    
-    .link-btn:hover {
-        color: var(--brand-primary);
-        background: rgba(159, 195, 39, 0.08);
-        border-color: var(--border-accent);
-        transform: translateY(-1px);
-    }
-    
-    /* =========================================================================
-       PROGRESS STYLES
-       ========================================================================= */
-    .progress-container {
-        margin: 2rem 0;
-    }
-    
-    .progress-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 1rem;
-    }
-    
-    .progress-label {
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 0.85rem;
-        color: var(--brand-primary);
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-    
-    .progress-time {
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 0.8rem;
-        color: var(--text-muted);
-    }
-    
-    .stProgress > div > div > div > div {
-        background: linear-gradient(90deg, var(--brand-primary), #c4e052, var(--brand-primary)) !important;
-        background-size: 200% 100%;
-        animation: progressShimmer 2s linear infinite;
-        border-radius: 100px !important;
-        height: 8px !important;
-    }
-    
-    @keyframes progressShimmer {
-        0% { background-position: -200% 0; }
-        100% { background-position: 200% 0; }
-    }
-    
-    .stProgress > div > div {
-        background: rgba(159, 195, 39, 0.1) !important;
-        border-radius: 100px !important;
-        height: 8px !important;
-    }
-    
-    /* Progress steps */
-    .progress-steps {
-        display: flex;
-        flex-direction: column;
-        gap: 0.75rem;
-        margin-top: 1.5rem;
-        padding: 1rem;
-        background: rgba(0, 0, 0, 0.3);
-        border-radius: 12px;
-        border: 1px solid var(--border-subtle);
-    }
-    
-    .progress-step {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 0.8rem;
-        color: var(--text-muted);
-        transition: all 0.3s;
-    }
-    
-    .progress-step.active {
-        color: var(--brand-primary);
-    }
-    
-    .progress-step.complete {
-        color: var(--accent-emerald);
-    }
-    
-    .step-indicator {
-        width: 20px;
-        height: 20px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 50%;
-        border: 2px solid currentColor;
-        font-size: 0.65rem;
-    }
-    
-    .step-indicator.active {
-        background: var(--brand-primary);
-        border-color: var(--brand-primary);
-        color: #000;
-        animation: stepPulse 1s ease-in-out infinite;
-    }
-    
-    @keyframes stepPulse {
-        0%, 100% { box-shadow: 0 0 0 0 rgba(159, 195, 39, 0.4); }
-        50% { box-shadow: 0 0 0 8px rgba(159, 195, 39, 0); }
-    }
-    
-    .step-indicator.complete {
-        background: var(--accent-emerald);
-        border-color: var(--accent-emerald);
-        color: #fff;
-    }
-    
-    /* =========================================================================
-       SUCCESS/ERROR MESSAGES
-       ========================================================================= */
-    .stSuccess {
-        background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(16, 185, 129, 0.05)) !important;
-        border: 1px solid rgba(16, 185, 129, 0.3) !important;
-        border-radius: 14px !important;
-        padding: 1.25rem !important;
-        color: var(--accent-emerald) !important;
-        font-family: 'Inter', sans-serif !important;
-    }
-    
-    .stError {
-        background: linear-gradient(135deg, rgba(244, 63, 94, 0.1), rgba(244, 63, 94, 0.05)) !important;
-        border: 1px solid rgba(244, 63, 94, 0.3) !important;
-        border-radius: 14px !important;
-        padding: 1.25rem !important;
-        color: var(--accent-rose) !important;
-        font-family: 'Inter', sans-serif !important;
-    }
-    
-    .stWarning {
-        background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(245, 158, 11, 0.05)) !important;
-        border: 1px solid rgba(245, 158, 11, 0.3) !important;
-        border-radius: 14px !important;
-        padding: 1.25rem !important;
-        color: var(--accent-amber) !important;
-        font-family: 'Inter', sans-serif !important;
-    }
-    
-    .stInfo {
-        background: linear-gradient(135deg, rgba(0, 212, 255, 0.1), rgba(0, 212, 255, 0.05)) !important;
-        border: 1px solid rgba(0, 212, 255, 0.3) !important;
-        border-radius: 14px !important;
-        padding: 1.25rem !important;
-        color: var(--accent-cyan) !important;
-        font-family: 'Inter', sans-serif !important;
-    }
-    
-    /* =========================================================================
-       METRIC CARDS
-       ========================================================================= */
-    .metric-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 1rem;
-        margin: 1.5rem 0;
-    }
-    
-    .metric-card {
-        background: rgba(0, 0, 0, 0.3);
-        border: 1px solid var(--border-subtle);
-        border-radius: 14px;
-        padding: 1.25rem;
-        transition: all 0.3s;
-    }
-    
-    .metric-card:hover {
-        border-color: var(--border-accent);
-        transform: translateY(-2px);
-    }
-    
-    .metric-value {
-        font-family: 'Outfit', sans-serif;
-        font-size: 1.75rem;
-        font-weight: 700;
-        color: var(--brand-primary);
-        margin-bottom: 0.25rem;
-    }
-    
-    .metric-label {
-        font-family: 'Inter', sans-serif;
-        font-size: 0.8rem;
-        color: var(--text-muted);
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-    }
-    
-    /* =========================================================================
-       TABS STYLING
-       ========================================================================= */
-    .stTabs [data-baseweb="tab-list"] {
-        background: rgba(0, 0, 0, 0.3);
-        border-radius: 14px;
-        padding: 0.5rem;
-        gap: 0.5rem;
-        border: 1px solid var(--border-subtle);
-    }
-    
-    .stTabs [data-baseweb="tab"] {
-        background: transparent !important;
-        border-radius: 10px !important;
-        padding: 0.75rem 1.5rem !important;
-        font-family: 'Outfit', sans-serif !important;
-        font-weight: 500 !important;
-        color: var(--text-muted) !important;
-        transition: all 0.3s !important;
-    }
-    
-    .stTabs [data-baseweb="tab"]:hover {
-        background: rgba(159, 195, 39, 0.1) !important;
-        color: var(--text-primary) !important;
-    }
-    
-    .stTabs [aria-selected="true"] {
-        background: linear-gradient(135deg, var(--brand-primary), #b8d94a) !important;
-        color: #000000 !important;
-    }
-    
-    .stTabs [data-baseweb="tab-panel"] {
-        padding-top: 1.5rem;
-    }
-    
-    /* =========================================================================
-       TOOLTIP STYLES
-       ========================================================================= */
-    .tooltip-container {
-        position: relative;
-        display: inline-block;
-    }
-    
-    .tooltip-icon {
-        width: 18px;
-        height: 18px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        background: rgba(159, 195, 39, 0.2);
-        border: 1px solid var(--border-accent);
-        border-radius: 50%;
-        font-size: 0.7rem;
-        color: var(--brand-primary);
-        cursor: help;
-        margin-left: 0.5rem;
-    }
-    
-    /* =========================================================================
-       ONBOARDING STYLES
-       ========================================================================= */
-    .onboarding-banner {
-        background: linear-gradient(135deg, rgba(159, 195, 39, 0.1), rgba(0, 212, 255, 0.05));
-        border: 1px solid var(--border-accent);
-        border-radius: 16px;
-        padding: 1.5rem;
-        margin-bottom: 2rem;
-        display: flex;
-        align-items: flex-start;
-        gap: 1rem;
-    }
-    
-    .onboarding-icon {
-        font-size: 2rem;
-        flex-shrink: 0;
-    }
-    
-    .onboarding-content h3 {
-        font-family: 'Outfit', sans-serif;
-        font-size: 1.1rem;
-        font-weight: 600;
-        color: var(--text-primary);
-        margin: 0 0 0.5rem 0;
-    }
-    
-    .onboarding-content p {
-        font-family: 'Inter', sans-serif;
-        font-size: 0.9rem;
-        color: var(--text-secondary);
-        margin: 0;
-        line-height: 1.6;
-    }
-    
-    .onboarding-dismiss {
-        margin-left: auto;
-        padding: 0.25rem 0.75rem;
-        background: transparent;
-        border: 1px solid var(--border-subtle);
-        border-radius: 6px;
-        color: var(--text-muted);
-        font-size: 0.8rem;
-        cursor: pointer;
-        transition: all 0.2s;
-    }
-    
-    .onboarding-dismiss:hover {
-        border-color: var(--text-muted);
-        color: var(--text-primary);
-    }
-    
-    /* =========================================================================
-       STATS BAR
-       ========================================================================= */
-    .stats-bar {
-        display: flex;
-        gap: 2rem;
-        padding: 1rem 1.5rem;
-        background: rgba(0, 0, 0, 0.3);
-        border: 1px solid var(--border-subtle);
-        border-radius: 12px;
-        margin-bottom: 2rem;
-        flex-wrap: wrap;
-    }
-    
-    .stat-item {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-    
-    .stat-icon {
-        font-size: 1rem;
-        color: var(--brand-primary);
-    }
-    
-    .stat-text {
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 0.8rem;
-        color: var(--text-secondary);
-    }
-    
-    .stat-value {
-        color: var(--text-primary);
-        font-weight: 500;
-    }
-    
-    /* =========================================================================
-       FOOTER
-       ========================================================================= */
-    .footer {
-        text-align: center;
-        padding: 3rem 0 2rem;
-        margin-top: 3rem;
-        border-top: 1px solid var(--border-subtle);
-    }
-    
-    .footer-brand {
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 0.85rem;
-        color: var(--brand-primary);
-        margin-bottom: 0.5rem;
-    }
-    
-    .footer-text {
-        font-family: 'Inter', sans-serif;
-        font-size: 0.8rem;
-        color: var(--text-muted);
-    }
-    
-    /* =========================================================================
-       RESPONSIVE DESIGN
-       ========================================================================= */
-    @media (max-width: 768px) {
-        .brand-title {
-            font-size: 1.75rem;
+        /* Global reset and base styling */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
         
-        .brand-tagline {
+        /* Main app background with animated gradient - ORIGINAL STYLE PRESERVED */
+        .stApp {
+            background: linear-gradient(135deg, 
+                #0a0f1c 0%, 
+                #1a2332 25%, 
+                #0d2439 50%, 
+                #1e3a52 75%, 
+                #0f1419 100%);
+            background-size: 400% 400%;
+            animation: gradientShift 15s ease infinite;
+            min-height: 100vh;
+            position: relative;
+        }
+        
+        /* Animated background */
+        @keyframes gradientShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        
+        /* Floating particles effect - ORIGINAL */
+        .stApp::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                radial-gradient(circle at 20% 20%, rgba(64, 224, 208, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(135, 206, 235, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 40% 60%, rgba(144, 238, 144, 0.05) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+        
+        /* =========================================================================
+           SIDEBAR ENHANCEMENTS
+           ========================================================================= */
+        [data-testid="stSidebar"] {
+            background: linear-gradient(180deg, 
+                rgba(10, 15, 28, 0.98) 0%, 
+                rgba(26, 35, 50, 0.98) 50%, 
+                rgba(15, 20, 25, 0.98) 100%) !important;
+            border-right: 1px solid rgba(64, 224, 208, 0.2) !important;
+        }
+        
+        [data-testid="stSidebar"] > div:first-child {
+            background: transparent !important;
+            padding-top: 1rem;
+        }
+        
+        .sidebar-header {
+            text-align: center;
+            padding: 1.5rem 1rem;
+            border-bottom: 1px solid rgba(64, 224, 208, 0.2);
+            margin-bottom: 1.5rem;
+        }
+        
+        .sidebar-logo {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .sidebar-title {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.1rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #40e0d0, #87ceeb, #90ee90);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .sidebar-subtitle {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.65rem;
+            color: rgba(255, 255, 255, 0.5);
+            margin-top: 0.25rem;
+            letter-spacing: 0.1em;
+        }
+        
+        .sidebar-section {
+            padding: 0 1rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .sidebar-section-title {
+            font-family: 'JetBrains Mono', monospace;
             font-size: 0.7rem;
+            color: rgba(255, 255, 255, 0.4);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 0.75rem;
         }
         
-        .header-content {
-            flex-direction: column;
-            text-align: center;
+        .sidebar-stat {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.6rem 0.75rem;
+            background: rgba(64, 224, 208, 0.05);
+            border: 1px solid rgba(64, 224, 208, 0.1);
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+            transition: all 0.3s ease;
         }
         
-        .header-logo {
-            width: 60px;
-            height: 60px;
+        .sidebar-stat:hover {
+            background: rgba(64, 224, 208, 0.1);
+            border-color: rgba(64, 224, 208, 0.3);
         }
         
-        .glass-card {
-            padding: 1.25rem;
-            border-radius: 14px;
+        .sidebar-stat-label {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.7);
         }
         
-        .card-header {
-            flex-direction: column;
-            text-align: center;
+        .sidebar-stat-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            color: #40e0d0;
+            font-weight: 500;
         }
         
-        .stats-bar {
-            flex-direction: column;
-            gap: 1rem;
+        .sidebar-status {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem;
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            border-radius: 8px;
+            margin-top: 1rem;
         }
         
-        .metric-grid {
-            grid-template-columns: 1fr 1fr;
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background: #10b981;
+            border-radius: 50%;
+            animation: pulse 2s ease-in-out infinite;
         }
         
-        .stButton > button {
-            padding: 0.875rem 1.5rem !important;
-            font-size: 0.9rem !important;
-        }
-    }
-    
-    @media (max-width: 480px) {
-        .metric-grid {
-            grid-template-columns: 1fr;
+        @keyframes pulse {
+            0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+            50% { opacity: 0.8; box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
         }
         
-        .brand-title {
+        .status-text {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            color: #10b981;
+        }
+        
+        /* =========================================================================
+           HEADER STYLES - ORIGINAL PRESERVED
+           ========================================================================= */
+        .header-container {
+            background: linear-gradient(135deg, 
+                rgba(64, 224, 208, 0.1) 0%, 
+                rgba(135, 206, 235, 0.15) 50%, 
+                rgba(144, 238, 144, 0.1) 100%);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            padding: 2.5rem;
+            margin: 1.5rem 0 2rem 0;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 
+                0 8px 32px rgba(0, 0, 0, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        }
+        
+        .header-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, 
+                transparent, 
+                rgba(64, 224, 208, 0.1), 
+                transparent);
+            animation: shimmer 3s infinite;
+        }
+        
+        @keyframes shimmer {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+        
+        .company-name {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 3rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #40e0d0, #87ceeb, #90ee90);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin: 0;
+            text-shadow: 0 0 30px rgba(64, 224, 208, 0.5);
+        }
+        
+        .tagline {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1rem;
+            color: rgba(255, 255, 255, 0.7);
+            margin-top: 0.5rem;
+            letter-spacing: 1px;
+        }
+        
+        /* =========================================================================
+           TABS STYLING - NEW
+           ========================================================================= */
+        .stTabs [data-baseweb="tab-list"] {
+            background: linear-gradient(135deg, 
+                rgba(64, 224, 208, 0.05) 0%, 
+                rgba(135, 206, 235, 0.08) 50%, 
+                rgba(144, 238, 144, 0.05) 100%);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 0.5rem;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .stTabs [data-baseweb="tab"] {
+            background: transparent !important;
+            border-radius: 12px !important;
+            padding: 0.875rem 1.75rem !important;
+            font-family: 'Space Grotesk', sans-serif !important;
+            font-size: 0.95rem !important;
+            font-weight: 500 !important;
+            color: rgba(255, 255, 255, 0.6) !important;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+            border: 1px solid transparent !important;
+        }
+        
+        .stTabs [data-baseweb="tab"]:hover {
+            background: rgba(64, 224, 208, 0.1) !important;
+            color: rgba(255, 255, 255, 0.9) !important;
+            border-color: rgba(64, 224, 208, 0.2) !important;
+        }
+        
+        .stTabs [aria-selected="true"] {
+            background: linear-gradient(135deg, 
+                rgba(64, 224, 208, 0.2) 0%, 
+                rgba(135, 206, 235, 0.25) 50%, 
+                rgba(144, 238, 144, 0.2) 100%) !important;
+            color: #ffffff !important;
+            border-color: rgba(64, 224, 208, 0.4) !important;
+            box-shadow: 0 4px 15px rgba(64, 224, 208, 0.2) !important;
+        }
+        
+        .stTabs [data-baseweb="tab-highlight"] {
+            display: none !important;
+        }
+        
+        .stTabs [data-baseweb="tab-border"] {
+            display: none !important;
+        }
+        
+        .stTabs [data-baseweb="tab-panel"] {
+            padding-top: 1rem;
+        }
+        
+        /* =========================================================================
+           GLASSMORPHISM CARDS - ORIGINAL ENHANCED
+           ========================================================================= */
+        .holo-card {
+            background: linear-gradient(135deg, 
+                rgba(255, 255, 255, 0.05) 0%, 
+                rgba(64, 224, 208, 0.1) 50%, 
+                rgba(135, 206, 235, 0.05) 100%);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 2rem;
+            margin: 1.5rem 0;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.4s cubic-bezier(0.23, 1, 0.320, 1);
+            box-shadow: 
+                0 10px 40px rgba(0, 0, 0, 0.2),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        }
+        
+        .holo-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 
+                0 20px 60px rgba(0, 0, 0, 0.3),
+                0 0 50px rgba(64, 224, 208, 0.15);
+            border-color: rgba(64, 224, 208, 0.3);
+        }
+        
+        .holo-card::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, 
+                transparent, 
+                rgba(64, 224, 208, 0.8), 
+                rgba(135, 206, 235, 0.8), 
+                transparent);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        
+        .holo-card:hover::after {
+            opacity: 1;
+        }
+        
+        .section-title {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.6rem;
+            font-weight: 600;
+            color: #ffffff;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        
+        .section-title-icon {
             font-size: 1.5rem;
         }
         
-        .glass-card {
-            padding: 1rem;
+        .description-text {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1rem;
+            color: rgba(255, 255, 255, 0.7);
+            line-height: 1.7;
+            margin-bottom: 1.5rem;
         }
-    }
-    
-    /* =========================================================================
-       HIDE STREAMLIT ELEMENTS
-       ========================================================================= */
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
-    .stDeployButton {display: none;}
-    
-    /* Hide anchor links */
-    .css-1dp5vir {display: none;}
-    h1 a, h2 a, h3 a {display: none;}
-    
-    /* Custom scrollbar */
-    ::-webkit-scrollbar {
-        width: 8px;
-        height: 8px;
-    }
-    
-    ::-webkit-scrollbar-track {
-        background: rgba(0, 0, 0, 0.3);
-    }
-    
-    ::-webkit-scrollbar-thumb {
-        background: rgba(159, 195, 39, 0.3);
-        border-radius: 4px;
-    }
-    
-    ::-webkit-scrollbar-thumb:hover {
-        background: rgba(159, 195, 39, 0.5);
-    }
-</style>
+        
+        /* =========================================================================
+           ENHANCED BUTTONS - IMPROVED
+           ========================================================================= */
+        .stButton > button {
+            background: linear-gradient(135deg, 
+                rgba(64, 224, 208, 0.25) 0%, 
+                rgba(135, 206, 235, 0.35) 50%, 
+                rgba(144, 238, 144, 0.25) 100%) !important;
+            border: 2px solid rgba(64, 224, 208, 0.5) !important;
+            border-radius: 16px !important;
+            padding: 1.1rem 2.5rem !important;
+            font-family: 'Space Grotesk', sans-serif !important;
+            font-size: 1.05rem !important;
+            font-weight: 600 !important;
+            color: #ffffff !important;
+            text-transform: uppercase !important;
+            letter-spacing: 1.5px !important;
+            transition: all 0.4s cubic-bezier(0.23, 1, 0.320, 1) !important;
+            width: 100% !important;
+            box-shadow: 
+                0 8px 32px rgba(64, 224, 208, 0.25),
+                inset 0 1px 0 rgba(255, 255, 255, 0.15) !important;
+            position: relative !important;
+            overflow: hidden !important;
+        }
+        
+        .stButton > button::before {
+            content: '' !important;
+            position: absolute !important;
+            top: 0 !important;
+            left: -100% !important;
+            width: 100% !important;
+            height: 100% !important;
+            background: linear-gradient(90deg, 
+                transparent, 
+                rgba(255, 255, 255, 0.2), 
+                transparent) !important;
+            transition: left 0.5s ease !important;
+        }
+        
+        .stButton > button:hover {
+            transform: translateY(-4px) scale(1.02) !important;
+            box-shadow: 
+                0 15px 50px rgba(64, 224, 208, 0.4),
+                0 0 40px rgba(64, 224, 208, 0.2),
+                inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+            border-color: rgba(64, 224, 208, 0.8) !important;
+        }
+        
+        .stButton > button:hover::before {
+            left: 100% !important;
+        }
+        
+        .stButton > button:active {
+            transform: translateY(-2px) scale(1.01) !important;
+        }
+        
+        /* Download button styling - ENHANCED */
+        .stDownloadButton > button {
+            background: rgba(255, 255, 255, 0.05) !important;
+            border: 1px solid rgba(64, 224, 208, 0.4) !important;
+            border-radius: 12px !important;
+            padding: 1rem 1.5rem !important;
+            font-family: 'Space Grotesk', sans-serif !important;
+            font-size: 0.9rem !important;
+            font-weight: 500 !important;
+            color: #40e0d0 !important;
+            transition: all 0.3s cubic-bezier(0.23, 1, 0.320, 1) !important;
+            width: 100% !important;
+            position: relative !important;
+            overflow: hidden !important;
+        }
+        
+        .stDownloadButton > button:hover {
+            background: linear-gradient(135deg, 
+                rgba(64, 224, 208, 0.15), 
+                rgba(135, 206, 235, 0.1)) !important;
+            border-color: rgba(64, 224, 208, 0.8) !important;
+            transform: translateY(-2px) !important;
+            box-shadow: 0 10px 30px rgba(64, 224, 208, 0.2) !important;
+            color: #ffffff !important;
+        }
+        
+        /* Link buttons - ENHANCED */
+        .neural-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            width: 100%;
+            padding: 1rem 1.5rem;
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: rgba(64, 224, 208, 0.9);
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(64, 224, 208, 0.3);
+            border-radius: 12px;
+            text-decoration: none;
+            transition: all 0.3s cubic-bezier(0.23, 1, 0.320, 1);
+            cursor: pointer;
+        }
+        
+        .neural-btn:hover {
+            color: #ffffff;
+            background: linear-gradient(135deg, 
+                rgba(64, 224, 208, 0.15), 
+                rgba(135, 206, 235, 0.1));
+            border-color: rgba(64, 224, 208, 0.6);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(64, 224, 208, 0.2);
+            text-decoration: none;
+        }
+        
+        /* =========================================================================
+           ENHANCED PROGRESS BAR - IMPROVED
+           ========================================================================= */
+        .stProgress > div > div > div > div {
+            background: linear-gradient(90deg, 
+                #40e0d0 0%, 
+                #87ceeb 25%,
+                #90ee90 50%,
+                #87ceeb 75%,
+                #40e0d0 100%) !important;
+            background-size: 200% 100% !important;
+            animation: progressGlow 2s linear infinite !important;
+            border-radius: 100px !important;
+            box-shadow: 
+                0 0 20px rgba(64, 224, 208, 0.5),
+                0 0 40px rgba(64, 224, 208, 0.3) !important;
+        }
+        
+        @keyframes progressGlow {
+            0% { background-position: 0% 50%; }
+            100% { background-position: 200% 50%; }
+        }
+        
+        .stProgress > div > div {
+            background: rgba(64, 224, 208, 0.15) !important;
+            border-radius: 100px !important;
+            height: 12px !important;
+            border: 1px solid rgba(64, 224, 208, 0.2) !important;
+        }
+        
+        /* Progress container styling */
+        .progress-wrapper {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(64, 224, 208, 0.2);
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+        }
+        
+        .progress-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        
+        .progress-title {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1rem;
+            font-weight: 600;
+            color: #40e0d0;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .progress-time {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.6);
+        }
+        
+        /* Progress steps */
+        .progress-steps {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 0.75rem;
+            margin-top: 1.25rem;
+            padding-top: 1.25rem;
+            border-top: 1px solid rgba(64, 224, 208, 0.1);
+        }
+        
+        .progress-step {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            padding: 0.6rem 0.8rem;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            border: 1px solid transparent;
+            transition: all 0.3s;
+        }
+        
+        .progress-step.pending {
+            color: rgba(255, 255, 255, 0.4);
+        }
+        
+        .progress-step.active {
+            color: #40e0d0;
+            background: rgba(64, 224, 208, 0.1);
+            border-color: rgba(64, 224, 208, 0.3);
+        }
+        
+        .progress-step.complete {
+            color: #10b981;
+        }
+        
+        .step-icon {
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            font-size: 0.7rem;
+            font-weight: 600;
+            border: 2px solid currentColor;
+            flex-shrink: 0;
+        }
+        
+        .step-icon.active {
+            background: #40e0d0;
+            border-color: #40e0d0;
+            color: #000;
+            animation: stepPulse 1.5s ease-in-out infinite;
+        }
+        
+        @keyframes stepPulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(64, 224, 208, 0.5); }
+            50% { box-shadow: 0 0 0 8px rgba(64, 224, 208, 0); }
+        }
+        
+        .step-icon.complete {
+            background: #10b981;
+            border-color: #10b981;
+            color: #fff;
+        }
+        
+        .step-label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+        }
+        
+        /* =========================================================================
+           STATUS TEXT STYLING
+           ========================================================================= */
+        .status-text {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            color: rgba(64, 224, 208, 0.9);
+            text-align: center;
+            margin: 0.75rem 0;
+            letter-spacing: 0.5px;
+            animation: statusFade 1.5s ease-in-out infinite;
+        }
+        
+        @keyframes statusFade {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+        
+        /* =========================================================================
+           SUCCESS/ERROR MESSAGES - ENHANCED
+           ========================================================================= */
+        .stSuccess {
+            background: linear-gradient(135deg, 
+                rgba(16, 185, 129, 0.15), 
+                rgba(64, 224, 208, 0.1)) !important;
+            border: 1px solid rgba(16, 185, 129, 0.4) !important;
+            border-radius: 14px !important;
+            padding: 1.25rem !important;
+            backdrop-filter: blur(10px) !important;
+        }
+        
+        .stError {
+            background: linear-gradient(135deg, 
+                rgba(244, 63, 94, 0.15), 
+                rgba(244, 63, 94, 0.05)) !important;
+            border: 1px solid rgba(244, 63, 94, 0.4) !important;
+            border-radius: 14px !important;
+            padding: 1.25rem !important;
+            backdrop-filter: blur(10px) !important;
+        }
+        
+        .stInfo {
+            background: linear-gradient(135deg, 
+                rgba(64, 224, 208, 0.15), 
+                rgba(135, 206, 235, 0.1)) !important;
+            border: 1px solid rgba(64, 224, 208, 0.4) !important;
+            border-radius: 14px !important;
+            padding: 1.25rem !important;
+            backdrop-filter: blur(10px) !important;
+        }
+        
+        /* =========================================================================
+           ONBOARDING BANNER - NEW
+           ========================================================================= */
+        .onboarding-banner {
+            background: linear-gradient(135deg, 
+                rgba(64, 224, 208, 0.1) 0%, 
+                rgba(135, 206, 235, 0.15) 50%,
+                rgba(144, 238, 144, 0.1) 100%);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(64, 224, 208, 0.3);
+            border-radius: 16px;
+            padding: 1.25rem 1.5rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: flex-start;
+            gap: 1rem;
+        }
+        
+        .onboarding-icon {
+            font-size: 1.75rem;
+            flex-shrink: 0;
+        }
+        
+        .onboarding-content {
+            flex: 1;
+        }
+        
+        .onboarding-title {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.05rem;
+            font-weight: 600;
+            color: #ffffff;
+            margin: 0 0 0.4rem 0;
+        }
+        
+        .onboarding-text {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.7);
+            margin: 0;
+            line-height: 1.5;
+        }
+        
+        .onboarding-highlight {
+            color: #40e0d0;
+            font-weight: 500;
+        }
+        
+        /* =========================================================================
+           STATS BAR - NEW
+           ========================================================================= */
+        .stats-bar {
+            display: flex;
+            gap: 1.5rem;
+            padding: 0.875rem 1.25rem;
+            background: rgba(0, 0, 0, 0.25);
+            border: 1px solid rgba(64, 224, 208, 0.15);
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+        
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.6);
+        }
+        
+        .stat-icon {
+            font-size: 0.9rem;
+        }
+        
+        .stat-value {
+            color: #40e0d0;
+            font-weight: 500;
+        }
+        
+        /* =========================================================================
+           DATA VISUALIZATION PREVIEW - ORIGINAL
+           ========================================================================= */
+        .viz-preview {
+            background: linear-gradient(135deg, 
+                rgba(64, 224, 208, 0.05), 
+                rgba(135, 206, 235, 0.05));
+            border: 1px solid rgba(64, 224, 208, 0.2);
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            text-align: center;
+        }
+        
+        .viz-preview h3 {
+            color: #40e0d0;
+            font-family: 'Space Grotesk', sans-serif;
+            margin-bottom: 0.75rem;
+            font-size: 1.1rem;
+        }
+        
+        .viz-preview p {
+            color: rgba(255, 255, 255, 0.6);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            margin: 0;
+        }
+        
+        /* =========================================================================
+           FOOTER - ENHANCED
+           ========================================================================= */
+        .footer {
+            text-align: center;
+            padding: 2.5rem 0 1.5rem 0;
+            margin-top: 2.5rem;
+            border-top: 1px solid rgba(64, 224, 208, 0.2);
+        }
+        
+        .footer-brand {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            color: rgba(64, 224, 208, 0.8);
+            margin-bottom: 0.4rem;
+        }
+        
+        .footer-text {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.4);
+        }
+        
+        /* =========================================================================
+           RESPONSIVE DESIGN
+           ========================================================================= */
+        @media (max-width: 768px) {
+            .company-name {
+                font-size: 2rem;
+            }
+            
+            .tagline {
+                font-size: 0.8rem;
+            }
+            
+            .header-container {
+                padding: 1.5rem;
+            }
+            
+            .holo-card {
+                padding: 1.25rem;
+                border-radius: 14px;
+            }
+            
+            .section-title {
+                font-size: 1.3rem;
+            }
+            
+            .stButton > button {
+                padding: 0.9rem 1.5rem !important;
+                font-size: 0.9rem !important;
+            }
+            
+            .stats-bar {
+                flex-direction: column;
+                gap: 0.75rem;
+            }
+            
+            .progress-steps {
+                grid-template-columns: 1fr;
+            }
+            
+            .stTabs [data-baseweb="tab"] {
+                padding: 0.75rem 1rem !important;
+                font-size: 0.85rem !important;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .company-name {
+                font-size: 1.6rem;
+            }
+            
+            .holo-card {
+                padding: 1rem;
+            }
+            
+            .onboarding-banner {
+                flex-direction: column;
+                text-align: center;
+            }
+        }
+        
+        /* =========================================================================
+           HIDE STREAMLIT ELEMENTS
+           ========================================================================= */
+        #MainMenu {visibility: hidden;}
+        footer {visibility: hidden;}
+        header {visibility: hidden;}
+        .stDeployButton {display: none;}
+        
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.3);
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: rgba(64, 224, 208, 0.3);
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(64, 224, 208, 0.5);
+        }
+    </style>
 """, unsafe_allow_html=True)
 
 # ==============================================================================
@@ -7978,138 +8004,112 @@ if "excel_buffer" not in st.session_state:
     st.session_state.show_onboarding = True
     st.session_state.last_forecast_time = None
     st.session_state.last_bom_time = None
-    st.session_state.active_tab = "forecast"
 
 # ==============================================================================
-# SIDEBAR NAVIGATION
+# SIDEBAR
 # ==============================================================================
 with st.sidebar:
-    # Logo in sidebar
+    # Sidebar Header
     st.markdown("""
-        <div style="text-align: center; padding: 1rem 0 2rem 0;">
-            <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">🌿</div>
-            <div style="font-family: 'Outfit', sans-serif; font-size: 1.1rem; font-weight: 700; color: #9fc327;">
-                HERBAL GOODNESS
-            </div>
-            <div style="font-family: 'JetBrains Mono', monospace; font-size: 0.65rem; color: rgba(255,255,255,0.5); margin-top: 0.25rem;">
-                INVENTORY INTELLIGENCE
-            </div>
-        </div>
-    """, unsafe_allow_html=True)
-    
-    st.markdown("---")
-    
-    # Navigation
-    st.markdown("""
-        <div style="font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; color: rgba(255,255,255,0.4); 
-                    text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 1rem; padding: 0 1rem;">
-            Navigation
+        <div class="sidebar-header">
+            <div class="sidebar-logo">🌿</div>
+            <div class="sidebar-title">HERBAL GOODNESS</div>
+            <div class="sidebar-subtitle">INVENTORY INTELLIGENCE</div>
         </div>
     """, unsafe_allow_html=True)
     
     # Quick Stats Section
-    st.markdown("---")
     st.markdown("""
-        <div style="font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; color: rgba(255,255,255,0.4); 
-                    text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 1rem; padding: 0 1rem;">
-            Quick Stats
-        </div>
+        <div class="sidebar-section">
+            <div class="sidebar-section-title">Quick Stats</div>
     """, unsafe_allow_html=True)
     
-    # Display last run times if available
+    # Estimated Times
+    st.markdown("""
+            <div class="sidebar-stat">
+                <span class="sidebar-stat-label">⚡ Forecast Time</span>
+                <span class="sidebar-stat-value">~90 sec</span>
+            </div>
+            <div class="sidebar-stat">
+                <span class="sidebar-stat-label">🧬 BOM Time</span>
+                <span class="sidebar-stat-value">~35 sec</span>
+            </div>
+    """, unsafe_allow_html=True)
+    
+    # Last Run Times
     if st.session_state.last_forecast_time:
         st.markdown(f"""
-            <div style="padding: 0.75rem 1rem; background: rgba(159, 195, 39, 0.1); border-radius: 8px; margin: 0.5rem 1rem;">
-                <div style="font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; color: rgba(255,255,255,0.5);">
-                    Last Forecast
-                </div>
-                <div style="font-family: 'Outfit', sans-serif; font-size: 0.85rem; color: #9fc327; margin-top: 0.25rem;">
-                    {st.session_state.last_forecast_time}
-                </div>
+            <div class="sidebar-stat">
+                <span class="sidebar-stat-label">📊 Last Forecast</span>
+                <span class="sidebar-stat-value">{st.session_state.last_forecast_time[-8:]}</span>
             </div>
         """, unsafe_allow_html=True)
     
     if st.session_state.last_bom_time:
         st.markdown(f"""
-            <div style="padding: 0.75rem 1rem; background: rgba(0, 212, 255, 0.1); border-radius: 8px; margin: 0.5rem 1rem;">
-                <div style="font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; color: rgba(255,255,255,0.5);">
-                    Last BOM Analysis
-                </div>
-                <div style="font-family: 'Outfit', sans-serif; font-size: 0.85rem; color: #00d4ff; margin-top: 0.25rem;">
-                    {st.session_state.last_bom_time}
-                </div>
+            <div class="sidebar-stat">
+                <span class="sidebar-stat-label">🧬 Last BOM</span>
+                <span class="sidebar-stat-value">{st.session_state.last_bom_time[-8:]}</span>
             </div>
         """, unsafe_allow_html=True)
     
+    st.markdown("</div>", unsafe_allow_html=True)
+    
     # System Status
-    st.markdown("---")
     st.markdown("""
-        <div style="padding: 1rem; margin: 0 1rem;">
-            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;">
-                <div style="width: 8px; height: 8px; background: #10b981; border-radius: 50%; animation: pulse 2s infinite;"></div>
-                <span style="font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: #10b981;">
-                    System Online
-                </span>
-            </div>
-            <div style="font-family: 'JetBrains Mono', monospace; font-size: 0.65rem; color: rgba(255,255,255,0.4);">
-                v5.0.1 • API Ready
+        <div class="sidebar-section">
+            <div class="sidebar-section-title">System Status</div>
+            <div class="sidebar-status">
+                <div class="status-dot"></div>
+                <span class="status-text">System Online • v5.1</span>
             </div>
         </div>
     """, unsafe_allow_html=True)
 
 # ==============================================================================
-# MAIN CONTENT AREA
+# MAIN CONTENT
 # ==============================================================================
 
-# Header Section
-col1, col2, col3 = st.columns([0.5, 4, 1])
+# Header
+header_col1, header_col2 = st.columns([1, 5])
 
-with col1:
+with header_col1:
     try:
         logo_path = os.path.join(BASE_DIR, "logo", "herbal-logo.avif")
-        st.image(logo_path, width=80)
+        st.image(logo_path, width=160)
     except:
         st.markdown("""
-            <div style="width: 80px; height: 80px; background: linear-gradient(135deg, #9fc327, #c4e052); 
+            <div style="width: 80px; height: 80px; background: linear-gradient(135deg, #40e0d0, #87ceeb); 
                         border-radius: 20px; display: flex; align-items: center; justify-content: center; 
-                        font-size: 2.5rem; box-shadow: 0 8px 32px rgba(159, 195, 39, 0.3);">
+                        font-size: 2.5rem; box-shadow: 0 8px 32px rgba(64, 224, 208, 0.3);">
                 🌿
             </div>
         """, unsafe_allow_html=True)
 
-with col2:
+with header_col2:
     st.markdown("""
-        <div style="padding-left: 1rem;">
-            <h1 class="brand-title">HERBAL GOODNESS</h1>
-            <p class="brand-tagline">// Inventory Intelligence System v5.0 //</p>
+        <div style="padding-left: 1.5rem;">
+            <h1 class="company-name">HERBAL GOODNESS</h1>
+            <p class="tagline">// INVENTORY INTELLIGENCE SYSTEM //</p>
         </div>
     """, unsafe_allow_html=True)
 
-with col3:
-    st.markdown("""
-        <div class="header-status">
-            <div class="status-dot"></div>
-            <span>ONLINE</span>
-        </div>
-    """, unsafe_allow_html=True)
-
-# Onboarding Banner (show only first time)
+# Onboarding Banner
 if st.session_state.show_onboarding:
     st.markdown("""
         <div class="onboarding-banner">
             <div class="onboarding-icon">👋</div>
             <div class="onboarding-content">
-                <h3>Welcome to the Inventory Intelligence System</h3>
-                <p>
-                    This platform provides AI-powered demand forecasting and BOM explosion analysis. 
-                    Use the <strong>Forecast Engine</strong> to predict inventory needs (~90 seconds), 
-                    or run <strong>BOM Analysis</strong> to calculate material requirements (~35 seconds).
+                <h4 class="onboarding-title">Welcome to the Inventory Intelligence System</h4>
+                <p class="onboarding-text">
+                    Use the <span class="onboarding-highlight">Forecast Engine</span> (~90 sec) to predict demand across all channels, 
+                    or run <span class="onboarding-highlight">BOM Analysis</span> (~35 sec) for material requirements planning.
                 </p>
             </div>
         </div>
     """, unsafe_allow_html=True)
     
-    if st.button("✕ Dismiss", key="dismiss_onboarding"):
+    if st.button("✕ Dismiss Welcome", key="dismiss_onboarding"):
         st.session_state.show_onboarding = False
         st.rerun()
 
@@ -8119,19 +8119,15 @@ st.markdown(f"""
     <div class="stats-bar">
         <div class="stat-item">
             <span class="stat-icon">📅</span>
-            <span class="stat-text">Current: <span class="stat-value">{current_time}</span></span>
-        </div>
-        <div class="stat-item">
-            <span class="stat-icon">⚡</span>
-            <span class="stat-text">Forecast: <span class="stat-value">~90s</span></span>
-        </div>
-        <div class="stat-item">
-            <span class="stat-icon">🧬</span>
-            <span class="stat-text">BOM: <span class="stat-value">~35s</span></span>
+            <span>Current: <span class="stat-value">{current_time}</span></span>
         </div>
         <div class="stat-item">
             <span class="stat-icon">📊</span>
-            <span class="stat-text">Channels: <span class="stat-value">5</span></span>
+            <span>Channels: <span class="stat-value">5</span></span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-icon">🔄</span>
+            <span>Data: <span class="stat-value">Google Sheets</span></span>
         </div>
     </div>
 """, unsafe_allow_html=True)
@@ -8139,102 +8135,98 @@ st.markdown(f"""
 # ==============================================================================
 # TABBED INTERFACE
 # ==============================================================================
-tab1, tab2, tab3 = st.tabs(["📊 Forecast Engine", "🧬 BOM Analysis", "📁 Access Portal"])
+tab1, tab2, tab3 = st.tabs(["🔮 Forecast Engine", "🧬 BOM Analysis", "📁 Access Portal"])
 
 # ==============================================================================
 # TAB 1: FORECAST ENGINE
 # ==============================================================================
 with tab1:
     st.markdown("""
-        <div class="glass-card">
-            <div class="card-header">
-                <div class="card-icon">🔮</div>
-                <div>
-                    <h3 class="card-title">Enhanced Forecast Engine</h3>
-                    <p class="card-subtitle">AI-powered demand prediction across all channels</p>
-                </div>
-            </div>
-            <p class="card-description">
-                Analyze historical sales data from Amazon FBA, Shopify Main, Shopify Faire, Amazon FBM, 
-                and Walmart FBM to generate accurate demand forecasts. The system uses Holt-Winters 
-                exponential smoothing and ABC velocity analysis for optimal predictions.
+        <div class="holo-card">
+            <h2 class="section-title">
+                <span class="section-title-icon">🔮</span>
+                Enhanced Forecast Engine
+            </h2>
+            <p class="description-text">
+                Unleash the power of advanced analytics and machine learning algorithms 
+                to predict inventory patterns with high accuracy. Analyzes data from 
+                Amazon FBA, Shopify Main, Shopify Faire, Amazon FBM, and Walmart FBM.
             </p>
         </div>
     """, unsafe_allow_html=True)
     
-    # Forecast Button and Progress
+    # Containers
     forecast_btn_container = st.container()
     forecast_progress_container = st.container()
     forecast_result_container = st.container()
     
     with forecast_btn_container:
-        if st.button("🚀 INITIATE FORECAST ANALYSIS", key="forecast_btn", use_container_width=True):
+        if st.button("🚀 INITIATE FORECASTING ANALYSIS", key="generate_btn"):
             start_time = time.time()
             
             with forecast_progress_container:
-                # Progress UI
+                # Progress wrapper
                 st.markdown("""
-                    <div class="progress-container">
+                    <div class="progress-wrapper">
                         <div class="progress-header">
-                            <span class="progress-label">
-                                <span style="animation: pulse 1s infinite;">⚡</span>
-                                Processing Forecast Analysis
-                            </span>
-                            <span class="progress-time" id="elapsed-time">Est. ~90 seconds</span>
+                            <span class="progress-title">⚡ Processing Forecast Analysis</span>
+                            <span class="progress-time">Est. ~90 seconds</span>
                         </div>
                     </div>
                 """, unsafe_allow_html=True)
                 
                 progress_bar = st.progress(0)
                 status_text = st.empty()
-                
-                # Detailed progress steps
                 steps_container = st.empty()
                 
                 forecast_stages = [
-                    ("Initializing data connections", 0, 10),
-                    ("Fetching Google Sheets data", 10, 25),
-                    ("Processing SKU mappings", 25, 35),
-                    ("Loading channel sales data", 35, 50),
-                    ("Running forecast algorithms", 50, 70),
-                    ("Calculating safety stock & ROP", 70, 85),
-                    ("Generating reports", 85, 95),
-                    ("Finalizing output", 95, 100)
+                    "Initializing Data Collection",
+                    "Sourcing Google Sheets Data",
+                    "Mapping SKU Relationships",
+                    "Processing Channel Sales",
+                    "Running Forecast Algorithms",
+                    "Calculating Safety Stock & ROP",
+                    "Generating Intelligence Reports",
+                    "Finalizing Output"
                 ]
                 
-                current_step = 0
-                
-                def update_steps_display(current_idx):
-                    steps_html = '<div class="progress-steps">'
-                    for idx, (step_name, _, _) in enumerate(forecast_stages):
+                def render_steps(current_idx, stages):
+                    html = '<div class="progress-steps">'
+                    for idx, stage in enumerate(stages):
                         if idx < current_idx:
-                            status_class = "complete"
+                            status = "complete"
+                            icon_class = "complete"
                             icon = "✓"
                         elif idx == current_idx:
-                            status_class = "active"
+                            status = "active"
+                            icon_class = "active"
                             icon = "●"
                         else:
-                            status_class = ""
+                            status = "pending"
+                            icon_class = ""
                             icon = str(idx + 1)
-                        steps_html += f'''
-                            <div class="progress-step {status_class}">
-                                <div class="step-indicator {status_class}">{icon}</div>
-                                <span>{step_name}</span>
+                        
+                        html += f'''
+                            <div class="progress-step {status}">
+                                <div class="step-icon {icon_class}">{icon}</div>
+                                <span class="step-label">{stage}</span>
                             </div>
                         '''
-                    steps_html += '</div>'
-                    return steps_html
+                    html += '</div>'
+                    return html
                 
-                # Initial progress animation
+                # Progress animation (first half)
                 for i in range(40):
                     stage_idx = min(i // 5, len(forecast_stages) - 1)
-                    stage_name = forecast_stages[stage_idx][0]
-                    status_text.markdown(f'<p class="status-text">{stage_name}...</p>', unsafe_allow_html=True)
-                    steps_container.markdown(update_steps_display(stage_idx), unsafe_allow_html=True)
+                    status_text.markdown(
+                        f'<p class="status-text">{forecast_stages[stage_idx]}...</p>',
+                        unsafe_allow_html=True
+                    )
+                    steps_container.markdown(render_steps(stage_idx, forecast_stages), unsafe_allow_html=True)
                     time.sleep(0.05)
                     progress_bar.progress(i + 1)
                 
-                # Run the actual forecast
+                # Run actual forecast
                 try:
                     result = main()
                     
@@ -8259,9 +8251,11 @@ with tab1:
                 # Complete progress
                 for i in range(40, 100):
                     stage_idx = min(i // 12, len(forecast_stages) - 1)
-                    stage_name = forecast_stages[stage_idx][0]
-                    status_text.markdown(f'<p class="status-text">{stage_name}...</p>', unsafe_allow_html=True)
-                    steps_container.markdown(update_steps_display(stage_idx), unsafe_allow_html=True)
+                    status_text.markdown(
+                        f'<p class="status-text">{forecast_stages[stage_idx]}...</p>',
+                        unsafe_allow_html=True
+                    )
+                    steps_container.markdown(render_steps(stage_idx, forecast_stages), unsafe_allow_html=True)
                     time.sleep(0.02)
                     progress_bar.progress(i + 1)
                 
@@ -8284,71 +8278,78 @@ with tab1:
                     
                     with forecast_result_container:
                         st.success(f"""
-                            ✅ **Forecast Analysis Complete!**
+                            ✅ **FORECAST ANALYSIS COMPLETED | REPORTS READY!**
                             
-                            📅 Generated: {timestamp_str}  
-                            ⏱️ Duration: {duration_str}
+                            📅 Generated at: **{timestamp_str}**  
+                            ⏱ Duration: **{duration_str}**
                         """)
-                        
-                        # Quick action buttons
-                        col1, col2, col3 = st.columns(3)
-                        with col1:
-                            st.download_button(
-                                "📥 Download Excel",
-                                data=st.session_state.excel_buffer.getvalue(),
-                                file_name=st.session_state.filename,
-                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                                use_container_width=True
-                            )
-                        with col2:
-                            if st.session_state.drive_file_id:
-                                sheets_link = f"https://docs.google.com/spreadsheets/d/{st.session_state.drive_file_id}/edit"
-                                st.markdown(f'<a href="{sheets_link}" target="_blank" class="link-btn">☁️ Google Sheets</a>', unsafe_allow_html=True)
-                        with col3:
-                            looker_url = "https://lookerstudio.google.com/reporting/9525ae1e-6f0e-4b5f-ae50-ca84312b76fd/page/br5SF"
-                            st.markdown(f'<a href="{looker_url}" target="_blank" class="link-btn">📊 Looker Dashboard</a>', unsafe_allow_html=True)
                 else:
                     with forecast_result_container:
                         st.error("❌ Forecast Analysis Failed. Please try again.")
+    
+    # Show quick access if results exist
+    if st.session_state.excel_buffer:
+        st.markdown("""
+            <div class="holo-card" style="margin-top: 1rem;">
+                <h3 class="section-title" style="font-size: 1.3rem;">
+                    <span class="section-title-icon">📥</span>
+                    Quick Access
+                </h3>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        col1, col2, col3 = st.columns(3, gap="large")
+        
+        with col1:
+            st.download_button(
+                label="📥 DOWNLOAD EXCEL",
+                data=st.session_state.excel_buffer.getvalue(),
+                file_name=st.session_state.filename,
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True
+            )
+        
+        with col2:
+            if st.session_state.drive_file_id:
+                sheets_link = f"https://docs.google.com/spreadsheets/d/{st.session_state.drive_file_id}/edit"
+                st.markdown(f'<a href="{sheets_link}" target="_blank" class="neural-btn">☁️ GOOGLE SHEETS</a>', unsafe_allow_html=True)
+        
+        with col3:
+            looker_url = "https://lookerstudio.google.com/reporting/9525ae1e-6f0e-4b5f-ae50-ca84312b76fd/page/br5SF"
+            st.markdown(f'<a href="{looker_url}" target="_blank" class="neural-btn">📊 LOOKER DASHBOARD</a>', unsafe_allow_html=True)
 
 # ==============================================================================
 # TAB 2: BOM ANALYSIS
 # ==============================================================================
 with tab2:
     st.markdown("""
-        <div class="glass-card">
-            <div class="card-header">
-                <div class="card-icon">🧬</div>
-                <div>
-                    <h3 class="card-title">Forecast BOM Explosion</h3>
-                    <p class="card-subtitle">Multi-level material requirements planning</p>
-                </div>
-            </div>
-            <p class="card-description">
+        <div class="holo-card">
+            <h2 class="section-title">
+                <span class="section-title-icon">🧬</span>
+                Forecast BOM Explosion
+            </h2>
+            <p class="description-text">
                 Execute multi-level Bill of Materials explosion using real forecast data. 
-                Calculate component requirements, Reorder Points (ROP), and procurement needs 
-                across your entire product hierarchy. Includes safety stock calculations and urgent reorder alerts.
+                Calculate component requirements, ROP, and procurement needs across your 
+                entire product hierarchy with safety stock calculations and urgent reorder alerts.
             </p>
         </div>
     """, unsafe_allow_html=True)
     
-    # BOM Button and Progress
+    # Containers
     bom_btn_container = st.container()
     bom_progress_container = st.container()
     bom_result_container = st.container()
     
     with bom_btn_container:
-        if st.button("🧬 INITIATE BOM ANALYSIS", key="bom_btn", use_container_width=True):
+        if st.button("🧬 INITIATE FORECAST BOM ANALYSIS", key="bom_generate_btn"):
             bom_start_time = time.time()
             
             with bom_progress_container:
                 st.markdown("""
-                    <div class="progress-container">
+                    <div class="progress-wrapper">
                         <div class="progress-header">
-                            <span class="progress-label">
-                                <span style="animation: pulse 1s infinite;">🧬</span>
-                                Processing BOM Explosion
-                            </span>
+                            <span class="progress-title">🧬 Processing BOM Explosion</span>
                             <span class="progress-time">Est. ~35 seconds</span>
                         </div>
                     </div>
@@ -8359,42 +8360,48 @@ with tab2:
                 bom_steps_container = st.empty()
                 
                 bom_stages = [
-                    ("Connecting to BOM data source", 0, 15),
-                    ("Loading Bill of Materials", 15, 30),
-                    ("Fetching SKU-UPC mappings", 30, 45),
-                    ("Retrieving forecast demand", 45, 55),
-                    ("Exploding multi-level BOM", 55, 70),
-                    ("Calculating ROP & procurement", 70, 85),
-                    ("Generating MRP reports", 85, 100)
+                    "Connecting to BOM Data",
+                    "Loading Bill of Materials",
+                    "Fetching SKU-UPC Mappings",
+                    "Retrieving Forecast Demand",
+                    "Exploding Multi-Level BOM",
+                    "Calculating ROP & Procurement",
+                    "Generating MRP Reports"
                 ]
                 
-                def update_bom_steps_display(current_idx):
-                    steps_html = '<div class="progress-steps">'
-                    for idx, (step_name, _, _) in enumerate(bom_stages):
+                def render_bom_steps(current_idx, stages):
+                    html = '<div class="progress-steps">'
+                    for idx, stage in enumerate(stages):
                         if idx < current_idx:
-                            status_class = "complete"
+                            status = "complete"
+                            icon_class = "complete"
                             icon = "✓"
                         elif idx == current_idx:
-                            status_class = "active"
+                            status = "active"
+                            icon_class = "active"
                             icon = "●"
                         else:
-                            status_class = ""
+                            status = "pending"
+                            icon_class = ""
                             icon = str(idx + 1)
-                        steps_html += f'''
-                            <div class="progress-step {status_class}">
-                                <div class="step-indicator {status_class}">{icon}</div>
-                                <span>{step_name}</span>
+                        
+                        html += f'''
+                            <div class="progress-step {status}">
+                                <div class="step-icon {icon_class}">{icon}</div>
+                                <span class="step-label">{stage}</span>
                             </div>
                         '''
-                    steps_html += '</div>'
-                    return steps_html
+                    html += '</div>'
+                    return html
                 
-                # Initial progress
+                # Progress animation
                 for i in range(40):
                     stage_idx = min(i // 6, len(bom_stages) - 1)
-                    stage_name = bom_stages[stage_idx][0]
-                    bom_status_text.markdown(f'<p class="status-text">{stage_name}...</p>', unsafe_allow_html=True)
-                    bom_steps_container.markdown(update_bom_steps_display(stage_idx), unsafe_allow_html=True)
+                    bom_status_text.markdown(
+                        f'<p class="status-text">{bom_stages[stage_idx]}...</p>',
+                        unsafe_allow_html=True
+                    )
+                    bom_steps_container.markdown(render_bom_steps(stage_idx, bom_stages), unsafe_allow_html=True)
                     time.sleep(0.03)
                     bom_progress_bar.progress(i + 1)
                 
@@ -8423,9 +8430,11 @@ with tab2:
                 # Complete progress
                 for i in range(40, 100):
                     stage_idx = min(i // 14, len(bom_stages) - 1)
-                    stage_name = bom_stages[stage_idx][0]
-                    bom_status_text.markdown(f'<p class="status-text">{stage_name}...</p>', unsafe_allow_html=True)
-                    bom_steps_container.markdown(update_bom_steps_display(stage_idx), unsafe_allow_html=True)
+                    bom_status_text.markdown(
+                        f'<p class="status-text">{bom_stages[stage_idx]}...</p>',
+                        unsafe_allow_html=True
+                    )
+                    bom_steps_container.markdown(render_bom_steps(stage_idx, bom_stages), unsafe_allow_html=True)
                     time.sleep(0.015)
                     bom_progress_bar.progress(i + 1)
                 
@@ -8449,112 +8458,122 @@ with tab2:
                     
                     with bom_result_container:
                         st.success(f"""
-                            ✅ **BOM Analysis Complete!**
+                            ✅ **FORECAST BOM ANALYSIS COMPLETED!**
                             
-                            📅 Generated: {bom_timestamp_str}  
-                            ⏱️ Duration: {bom_duration_str}
+                            📅 Generated at: **{bom_timestamp_str}**  
+                            ⏱ Duration: **{bom_duration_str}**
                         """)
-                        
-                        # Quick action buttons
-                        col1, col2, col3 = st.columns(3)
-                        with col1:
-                            st.download_button(
-                                "📥 Download BOM Excel",
-                                data=st.session_state.bom_excel_buffer.getvalue(),
-                                file_name=st.session_state.bom_filename,
-                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                                use_container_width=True
-                            )
-                        with col2:
-                            bom_sheets_url = "https://docs.google.com/spreadsheets/d/1_wXJDNZeZ7Y31S_i3UUDQ89vCbJC-xotm3wADBSf5eY"
-                            st.markdown(f'<a href="{bom_sheets_url}" target="_blank" class="link-btn">☁️ BOM Sheets</a>', unsafe_allow_html=True)
-                        with col3:
-                            bom_looker_url = "https://lookerstudio.google.com/reporting/9525ae1e-6f0e-4b5f-ae50-ca84312b76fd/page/p_xsi76rd4yd"
-                            st.markdown(f'<a href="{bom_looker_url}" target="_blank" class="link-btn">📊 BOM Dashboard</a>', unsafe_allow_html=True)
                 else:
                     with bom_result_container:
                         st.error("❌ BOM Analysis Failed. Please try again.")
+    
+    # Show quick access if results exist
+    if st.session_state.bom_analysis_complete and st.session_state.bom_excel_buffer:
+        st.markdown("""
+            <div class="holo-card" style="margin-top: 1rem;">
+                <h3 class="section-title" style="font-size: 1.3rem;">
+                    <span class="section-title-icon">📥</span>
+                    BOM Quick Access
+                </h3>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        bom_col1, bom_col2, bom_col3 = st.columns(3, gap="large")
+        
+        with bom_col1:
+            st.download_button(
+                label="📥 DOWNLOAD BOM WORKBOOK",
+                data=st.session_state.bom_excel_buffer.getvalue(),
+                file_name=st.session_state.bom_filename,
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True
+            )
+        
+        with bom_col2:
+            bom_sheets_url = "https://docs.google.com/spreadsheets/d/1_wXJDNZeZ7Y31S_i3UUDQ89vCbJC-xotm3wADBSf5eY"
+            st.markdown(f'<a href="{bom_sheets_url}" target="_blank" class="neural-btn">☁️ BOM SHEETS</a>', unsafe_allow_html=True)
+        
+        with bom_col3:
+            bom_looker_url = "https://lookerstudio.google.com/reporting/9525ae1e-6f0e-4b5f-ae50-ca84312b76fd/page/p_xsi76rd4yd"
+            st.markdown(f'<a href="{bom_looker_url}" target="_blank" class="neural-btn">📊 BOM DASHBOARD</a>', unsafe_allow_html=True)
 
 # ==============================================================================
 # TAB 3: ACCESS PORTAL
 # ==============================================================================
 with tab3:
     st.markdown("""
-        <div class="glass-card">
-            <div class="card-header">
-                <div class="card-icon">📁</div>
-                <div>
-                    <h3 class="card-title">Intelligence Access Portal</h3>
-                    <p class="card-subtitle">Download reports and access cloud resources</p>
-                </div>
-            </div>
-            <p class="card-description">
-                Access your generated reports across multiple platforms. Download Excel workbooks, 
-                view data in Google Sheets, or explore interactive dashboards in Looker Studio.
+        <div class="holo-card">
+            <h2 class="section-title">
+                <span class="section-title-icon">🌐</span>
+                Intelligence Access Portal
+            </h2>
+            <p class="description-text">
+                Your enhanced reports are available across multiple platforms. 
+                Access your intelligence reports through various interfaces for maximum operational efficiency.
             </p>
         </div>
     """, unsafe_allow_html=True)
     
     # Forecast Reports Section
+    st.markdown("""
+        <div class="holo-card">
+            <h3 class="section-title" style="font-size: 1.3rem;">
+                <span class="section-title-icon">📊</span>
+                Forecast Reports
+            </h3>
+        </div>
+    """, unsafe_allow_html=True)
+    
     if st.session_state.excel_buffer:
-        st.markdown("""
-            <div class="glass-card" style="border-color: rgba(159, 195, 39, 0.3);">
-                <div class="card-header">
-                    <div class="card-icon" style="background: linear-gradient(135deg, rgba(159, 195, 39, 0.3), rgba(159, 195, 39, 0.1));">📊</div>
-                    <div>
-                        <h3 class="card-title">Forecast Reports</h3>
-                        <p class="card-subtitle">Generated: """ + (st.session_state.last_forecast_time or "N/A") + """</p>
-                    </div>
-                </div>
-            </div>
-        """, unsafe_allow_html=True)
+        last_time = st.session_state.last_forecast_time or "N/A"
+        st.info(f"📅 Last Generated: **{last_time}**")
         
-        col1, col2, col3 = st.columns(3)
+        col1, col2, col3 = st.columns(3, gap="large")
         
         with col1:
             st.download_button(
-                "📥 Download Excel Workbook",
+                label="📥 DOWNLOAD EXCEL WORKBOOK",
                 data=st.session_state.excel_buffer.getvalue(),
                 file_name=st.session_state.filename,
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 use_container_width=True,
-                key="portal_forecast_download"
+                key="portal_download"
             )
         
         with col2:
             if st.session_state.drive_file_id:
                 sheets_link = f"https://docs.google.com/spreadsheets/d/{st.session_state.drive_file_id}/edit"
-                st.markdown(f'<a href="{sheets_link}" target="_blank" class="link-btn">☁️ Open in Google Sheets</a>', unsafe_allow_html=True)
+                st.markdown(f'<a href="{sheets_link}" target="_blank" class="neural-btn">☁️ GOOGLE SHEETS</a>', unsafe_allow_html=True)
             else:
-                st.markdown('<div class="link-btn" style="opacity: 0.5; cursor: not-allowed;">☁️ Google Sheets (Not Available)</div>', unsafe_allow_html=True)
+                st.markdown('<div class="neural-btn" style="opacity: 0.5;">☁️ Not Available</div>', unsafe_allow_html=True)
         
         with col3:
             looker_url = "https://lookerstudio.google.com/reporting/9525ae1e-6f0e-4b5f-ae50-ca84312b76fd/page/br5SF"
-            st.markdown(f'<a href="{looker_url}" target="_blank" class="link-btn">📊 Looker Dashboard</a>', unsafe_allow_html=True)
+            st.markdown(f'<a href="{looker_url}" target="_blank" class="neural-btn">📊 LOOKER DASHBOARD</a>', unsafe_allow_html=True)
     else:
         st.info("💡 No forecast reports available. Run the Forecast Engine first.")
     
     st.markdown("<br>", unsafe_allow_html=True)
     
     # BOM Reports Section
+    st.markdown("""
+        <div class="holo-card">
+            <h3 class="section-title" style="font-size: 1.3rem;">
+                <span class="section-title-icon">🧬</span>
+                BOM Analysis Reports
+            </h3>
+        </div>
+    """, unsafe_allow_html=True)
+    
     if st.session_state.bom_analysis_complete and st.session_state.bom_excel_buffer:
-        st.markdown("""
-            <div class="glass-card" style="border-color: rgba(0, 212, 255, 0.3);">
-                <div class="card-header">
-                    <div class="card-icon" style="background: linear-gradient(135deg, rgba(0, 212, 255, 0.3), rgba(0, 212, 255, 0.1));">🧬</div>
-                    <div>
-                        <h3 class="card-title">BOM Analysis Reports</h3>
-                        <p class="card-subtitle">Generated: """ + (st.session_state.last_bom_time or "N/A") + """</p>
-                    </div>
-                </div>
-            </div>
-        """, unsafe_allow_html=True)
+        last_bom_time = st.session_state.last_bom_time or "N/A"
+        st.info(f"📅 Last Generated: **{last_bom_time}**")
         
-        col1, col2, col3 = st.columns(3)
+        col1, col2, col3 = st.columns(3, gap="large")
         
         with col1:
             st.download_button(
-                "📥 Download BOM Workbook",
+                label="📥 DOWNLOAD BOM WORKBOOK",
                 data=st.session_state.bom_excel_buffer.getvalue(),
                 file_name=st.session_state.bom_filename,
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -8564,21 +8583,31 @@ with tab3:
         
         with col2:
             bom_sheets_url = "https://docs.google.com/spreadsheets/d/1_wXJDNZeZ7Y31S_i3UUDQ89vCbJC-xotm3wADBSf5eY"
-            st.markdown(f'<a href="{bom_sheets_url}" target="_blank" class="link-btn">☁️ Open BOM Sheets</a>', unsafe_allow_html=True)
+            st.markdown(f'<a href="{bom_sheets_url}" target="_blank" class="neural-btn">☁️ BOM SHEETS</a>', unsafe_allow_html=True)
         
         with col3:
             bom_looker_url = "https://lookerstudio.google.com/reporting/9525ae1e-6f0e-4b5f-ae50-ca84312b76fd/page/p_xsi76rd4yd"
-            st.markdown(f'<a href="{bom_looker_url}" target="_blank" class="link-btn">📊 BOM Dashboard</a>', unsafe_allow_html=True)
+            st.markdown(f'<a href="{bom_looker_url}" target="_blank" class="neural-btn">📊 BOM DASHBOARD</a>', unsafe_allow_html=True)
     else:
         st.info("💡 No BOM reports available. Run the BOM Analysis first.")
+
+# ==============================================================================
+# VISUALIZATION PREVIEW
+# ==============================================================================
+st.markdown("""
+    <div class="viz-preview">
+        <h3>📈 PREDICTIVE VISUALIZATION MATRIX</h3>
+        <p>Real-time quantum analytics • Multi-dimensional forecasting • Neural pattern recognition</p>
+    </div>
+""", unsafe_allow_html=True)
 
 # ==============================================================================
 # FOOTER
 # ==============================================================================
 st.markdown("""
     <div class="footer">
-        <p class="footer-brand">HERBAL GOODNESS © 2025 | POWERED BY SCMplify CONSULTANCY</p>
-        <p class="footer-text">Inventory Intelligence System v5.0.1 • API Ready • All Rights Reserved</p>
+        <p class="footer-brand">HERBAL GOODNESS © 2025 | POWERED BY SCMplify CONSULTANCY | VERSION 5.1</p>
+        <p class="footer-text">Revolutionizing inventory management through intelligent forecasting</p>
     </div>
 """, unsafe_allow_html=True)
 

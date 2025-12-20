@@ -4683,14 +4683,16 @@ def upload_bom_excel_to_google_sheet(excel_buffer, sheet_id=None):
     import json
     from google.oauth2.service_account import Credentials
 
-    print("🔄 Uploading BOM output to Google Sheets...", flush=True)
+    print("🔄 Using GCP credentials from environment...")
     
     # Ensure env var is present
     if "gcp_service_account_sheets" not in os.environ:
         raise FileNotFoundError("❌ No GCP service account credentials found in environment variables.")
 
+    # ✅ Debug: Check what we actually got from env
     try:
         raw_secret = os.environ["gcp_service_account_sheets"]
+        print(f"🔍 Secret length: {len(raw_secret)} characters")
         creds_dict = json.loads(raw_secret)
         print(f"✅ Loaded service account for: {creds_dict.get('client_email', 'UNKNOWN EMAIL')}")
     except Exception as e:
@@ -4699,10 +4701,11 @@ def upload_bom_excel_to_google_sheet(excel_buffer, sheet_id=None):
         traceback.print_exc()
         raise
     
-    # Save to temp file
+    # Save to temp file (exactly like your working function)
     credentials_file = "temp_bom_sheet_credentials.json"
     with open(credentials_file, "w") as f:
         json.dump(creds_dict, f)
+    print("✅ Credentials saved to temp file.")
 
     # Create credentials from temp file
     scopes = ['https://www.googleapis.com/auth/spreadsheets']
@@ -4712,29 +4715,24 @@ def upload_bom_excel_to_google_sheet(excel_buffer, sheet_id=None):
     # Clean up temp file
     try:
         os.remove(credentials_file)
+        print("🧹 Cleaned up temp credentials file.")
     except:
         pass
 
-    # BOM-specific Google Sheet ID
+    # ✅ BOM-specific Google Sheet ID
     if sheet_id is None:
         sheet_id = "1_wXJDNZeZ7Y31S_i3UUDQ89vCbJC-xotm3wADBSf5eY"
 
     try:
         sheet = gc.open_by_key(sheet_id)
-        print(f"🔁 Connected to BOM Google Sheet: {sheet.title}")
+        print(f"🔁 Connected to Google Sheet: {sheet.title}")
     except Exception as e:
-        print("❌ Failed to connect to BOM Google Sheet:", e)
+        print("❌ Failed to connect to Google Sheet:", e)
         raise
 
     try:
-        # Validate and read Excel from buffer
-        if excel_buffer is None:
-            print("❌ Excel buffer is None")
-            return None
+        # Read Excel from buffer
         excel_buffer.seek(0)
-        if hasattr(excel_buffer, 'getbuffer') and excel_buffer.getbuffer().nbytes == 0:
-            print("❌ Excel buffer is empty")
-            return None
         all_sheets = pd.read_excel(excel_buffer, sheet_name=None, engine="openpyxl")
 
         # Existing sheet names
@@ -4754,27 +4752,26 @@ def upload_bom_excel_to_google_sheet(excel_buffer, sheet_id=None):
             # Push to Google Sheet
             try:
                 ws.update([df.columns.tolist()] + df.values.tolist())
-                print(f"✅ Updated BOM sheet: {sheet_name}")
+                print(f"✅ Updated sheet: {sheet_name}")
             except Exception as e:
                 print(f"⚠️ Error updating '{sheet_name}': {e}")
             
             time.sleep(1)  # Add delay to avoid quota issues
 
-        print(f"✅ BOM output uploaded to Google Sheets successfully")
         return f"https://docs.google.com/spreadsheets/d/{sheet_id}"
 
     except Exception as e:
-        print("❌ Unexpected error while uploading BOM to Google Sheets:", e, flush=True)
+        print("❌ Unexpected error while uploading to Google Sheets:", e)
         import traceback
         traceback.print_exc()
         return None
 
 
-# NEW: BOM-specific Google Drive Upload Function
-# PLACEMENT: Immediately after upload_bom_excel_to_google_sheet
-
 def upload_bom_to_google_drive_from_buffer(buffer):
-    """..."""
+    """
+    Upload BOM Excel output to Google Drive.
+    Reuses the same authentication pattern as the main upload function.
+    """
     import os
     import json
     from datetime import datetime
@@ -4782,169 +4779,176 @@ def upload_bom_to_google_drive_from_buffer(buffer):
     from googleapiclient.discovery import build
     from googleapiclient.http import MediaIoBaseUpload
     
-    try:
-        SCOPES = ['https://www.googleapis.com/auth/drive']
-        SHARED_DRIVE_ID = '0ANRBYKNxrAXaUk9PVA'
-        FOLDER_ID = '0ANRBYKNxrAXaUk9PVA'
-        FIXED_FILENAME = "BOM Analysis Workbook.xlsx"
-        BOM_SUBFOLDER_ID = '1PHfLwnrl15wbu5si02Y1ZEqTs7EZKEp7'  # BOM-specific timestamp subfolder
+    # Constants
+    SCOPES = ['https://www.googleapis.com/auth/drive']
+    SHARED_DRIVE_ID = '0ANRBYKNxrAXaUk9PVA'
+    FOLDER_ID = '0ANRBYKNxrAXaUk9PVA'
+    FIXED_FILENAME = "BOM Analysis Workbook.xlsx"
+    SUBFOLDER_NAME = "BOM_Output_TimeStamps"  # BOM-specific subfolder name
 
-        # Validate buffer
-        if buffer is None:
-            print("❌ Buffer is None")
-            return None
+    # Handle service account credentials - GCP only
+    if "gcp_service_account_drive" not in os.environ:
+        raise FileNotFoundError("❌ No Google Drive service account credentials found in environment variables.")
+    
+    print("🔄 Using Google Drive credentials from environment...")
+    
+    # Load credentials from environment
+    creds_dict = json.loads(os.environ["gcp_service_account_drive"])
+    
+    # Write to temporary file (required for from_service_account_file)
+    SERVICE_ACCOUNT_FILE = "temp_bom_drive_service_account.json"
+    with open(SERVICE_ACCOUNT_FILE, "w") as f:
+        json.dump(creds_dict, f)
+    
+    print("✅ Google Drive credentials loaded and saved to temp file.")
+    
+    # Initialize credentials and service
+    credentials = service_account.Credentials.from_service_account_file(
+        SERVICE_ACCOUNT_FILE, scopes=SCOPES
+    )
+    drive_service = build('drive', 'v3', credentials=credentials)
+
+    # =============================================================================
+    # PART 1: Update/Create main BOM file
+    # =============================================================================
+    
+    # Check if file with same name already exists
+    query = f"'{FOLDER_ID}' in parents and name = '{FIXED_FILENAME}' and trashed = false"
+    result = drive_service.files().list(
+        q=query,
+        fields="files(id)",
+        supportsAllDrives=True,
+        includeItemsFromAllDrives=True,
+        corpora="drive",
+        driveId=SHARED_DRIVE_ID
+    ).execute()
+
+    existing_files = result.get("files", [])
+
+    # If exists, update it
+    if existing_files:
+        file_id = existing_files[0]['id']
         buffer.seek(0)
-        if hasattr(buffer, 'getbuffer') and buffer.getbuffer().nbytes == 0:
-            print("❌ Buffer is empty")
-            return None
-
-        # Handle service account credentials - GCP only
-        if "gcp_service_account_drive" not in os.environ:
-            raise FileNotFoundError("❌ No Google Drive service account credentials found in environment variables.")
-        
-        print("🔄 Uploading BOM output to Google Drive...")
-        
-        # Load credentials from environment
-        creds_dict = json.loads(os.environ["gcp_service_account_drive"])
-        
-        # Write to temporary file
-        SERVICE_ACCOUNT_FILE = "temp_bom_drive_service_account.json"
-        with open(SERVICE_ACCOUNT_FILE, "w") as f:
-            json.dump(creds_dict, f)
-        
-        # Initialize credentials and service
-        credentials = service_account.Credentials.from_service_account_file(
-            SERVICE_ACCOUNT_FILE, scopes=SCOPES
+        media = MediaIoBaseUpload(buffer,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            resumable=True
         )
-        drive_service = build('drive', 'v3', credentials=credentials)
+        updated_file = drive_service.files().update(
+            fileId=file_id,
+            media_body=media,
+            supportsAllDrives=True
+        ).execute()
+        print(f"♻️ Existing file updated: {FIXED_FILENAME} (ID: {file_id})")
+    else:
+        buffer.seek(0)
+        media = MediaIoBaseUpload(buffer,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            resumable=True
+        )
+        file_metadata = {
+            'name': FIXED_FILENAME,
+            'parents': [FOLDER_ID],
+            'driveId': SHARED_DRIVE_ID
+        }
+        uploaded_file = drive_service.files().create(
+            body=file_metadata,
+            media_body=media,
+            supportsAllDrives=True,
+            fields='id'
+        ).execute()
+        file_id = uploaded_file.get('id')
+        print(f"✅ New file uploaded: {FIXED_FILENAME} (ID: {file_id})")
 
-        # ==========================================================================
-        # PART 1: Update/Create main BOM file
-        # ==========================================================================
+    # =============================================================================
+    # PART 2: Save timestamped copy to BOM-specific subfolder
+    # =============================================================================
+    
+    try:
+        print("📁 Starting timestamped backup process...")
         
-        # Check if file with same name already exists
-        query = f"'{FOLDER_ID}' in parents and name = '{FIXED_FILENAME}' and trashed = false"
-        result = drive_service.files().list(
-            q=query,
+        # Step 1: Find the existing subfolder (assumes it exists)
+        subfolder_query = f"'{FOLDER_ID}' in parents and name = '{SUBFOLDER_NAME}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
+        subfolder_result = drive_service.files().list(
+            q=subfolder_query,
+            fields="files(id, name)",
+            supportsAllDrives=True,
+            includeItemsFromAllDrives=True,
+            corpora="drive",
+            driveId=SHARED_DRIVE_ID
+        ).execute()
+        
+        subfolder_files = subfolder_result.get("files", [])
+        
+        if subfolder_files:
+            subfolder_id = subfolder_files[0]['id']
+            print(f"📂 Found subfolder: {SUBFOLDER_NAME} (ID: {subfolder_id})")
+        else:
+            raise FileNotFoundError(f"❌ Subfolder '{SUBFOLDER_NAME}' not found. Please create it manually in your Drive folder.")
+        
+        # Step 2: Generate timestamped filename
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamped_filename = f"BOM_Backup_{timestamp}.xlsx"
+        print(f"🕒 Generated timestamped filename: {timestamped_filename}")
+        
+        # Step 3: Check if file with same timestamp already exists (overwrite if exists)
+        timestamp_query = f"'{subfolder_id}' in parents and name = '{timestamped_filename}' and trashed = false"
+        timestamp_result = drive_service.files().list(
+            q=timestamp_query,
             fields="files(id)",
             supportsAllDrives=True,
             includeItemsFromAllDrives=True,
             corpora="drive",
             driveId=SHARED_DRIVE_ID
         ).execute()
-
-        existing_files = result.get("files", [])
-
-        # If exists, update it
-        if existing_files:
-            file_id = existing_files[0]['id']
-            buffer.seek(0)
-            media = MediaIoBaseUpload(buffer,
-                mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                resumable=True
-            )
-            updated_file = drive_service.files().update(
-                fileId=file_id,
+        
+        existing_timestamp_files = timestamp_result.get("files", [])
+        
+        # Step 4: Upload or update timestamped file
+        buffer.seek(0)  # Reset buffer position
+        media = MediaIoBaseUpload(buffer,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            resumable=True
+        )
+        
+        if existing_timestamp_files:
+            # Update existing timestamped file
+            timestamp_file_id = existing_timestamp_files[0]['id']
+            updated_timestamp_file = drive_service.files().update(
+                fileId=timestamp_file_id,
                 media_body=media,
                 supportsAllDrives=True
             ).execute()
-            print(f"♻️ Existing BOM file updated: {FIXED_FILENAME} (ID: {file_id})")
+            print(f"🔄 Overwritten existing timestamped backup: {timestamped_filename}")
         else:
-            buffer.seek(0)
-            media = MediaIoBaseUpload(buffer,
-                mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                resumable=True
-            )
-            file_metadata = {
-                'name': FIXED_FILENAME,
-                'parents': [FOLDER_ID],
+            # Create new timestamped file
+            timestamp_file_metadata = {
+                'name': timestamped_filename,
+                'parents': [subfolder_id],
                 'driveId': SHARED_DRIVE_ID
             }
-            uploaded_file = drive_service.files().create(
-                body=file_metadata,
+            uploaded_timestamp_file = drive_service.files().create(
+                body=timestamp_file_metadata,
                 media_body=media,
                 supportsAllDrives=True,
                 fields='id'
             ).execute()
-            file_id = uploaded_file.get('id')
-            print(f"✅ New BOM file uploaded: {FIXED_FILENAME} (ID: {file_id})")
-
-        # ==========================================================================
-        # PART 2: Save timestamped backup to BOM-specific subfolder
-        # ==========================================================================
-        
-        try:
-            print("📁 Starting BOM timestamped backup process...")
+            print(f"✅ New timestamped backup saved: {timestamped_filename}")
             
-            # Generate timestamped filename
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            timestamped_filename = f"BOM_Backup_{timestamp}.xlsx"
-            print(f"🕒 Generated timestamped filename: {timestamped_filename}")
-            
-            # Check if file with same timestamp already exists (overwrite if exists)
-            timestamp_query = f"'{BOM_SUBFOLDER_ID}' in parents and name = '{timestamped_filename}' and trashed = false"
-            timestamp_result = drive_service.files().list(
-                q=timestamp_query,
-                fields="files(id)",
-                supportsAllDrives=True,
-                includeItemsFromAllDrives=True,
-                corpora="drive",
-                driveId=SHARED_DRIVE_ID
-            ).execute()
-            
-            existing_timestamp_files = timestamp_result.get("files", [])
-            
-            # Upload or update timestamped file
-            buffer.seek(0)
-            media = MediaIoBaseUpload(buffer,
-                mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                resumable=True
-            )
-            
-            if existing_timestamp_files:
-                # Update existing timestamped file
-                timestamp_file_id = existing_timestamp_files[0]['id']
-                updated_timestamp_file = drive_service.files().update(
-                    fileId=timestamp_file_id,
-                    media_body=media,
-                    supportsAllDrives=True
-                ).execute()
-                print(f"🔄 Overwritten existing BOM timestamped backup: {timestamped_filename}")
-            else:
-                # Create new timestamped file
-                timestamp_file_metadata = {
-                    'name': timestamped_filename,
-                    'parents': [BOM_SUBFOLDER_ID],
-                    'driveId': SHARED_DRIVE_ID
-                }
-                uploaded_timestamp_file = drive_service.files().create(
-                    body=timestamp_file_metadata,
-                    media_body=media,
-                    supportsAllDrives=True,
-                    fields='id'
-                ).execute()
-                print(f"✅ New BOM timestamped backup saved: {timestamped_filename}")
-                
-            print("📚 BOM timestamped backup process completed successfully!")
-            
-        except Exception as e:
-            print(f"⚠️ Warning: Failed to save BOM timestamped backup: {str(e)}")
-            print("📝 Main BOM file upload was successful, continuing...")
-
-        # Clean up temp file
-        try:
-            os.remove(SERVICE_ACCOUNT_FILE)
-        except:
-            pass
-
-        print(f"✅ BOM output uploaded to Google Drive successfully", flush=True)
-        return file_id
+        print("📚 Timestamped backup process completed successfully!")
         
     except Exception as e:
-        print(f"❌ Unexpected error uploading BOM to Google Drive: {e}", flush=True)
-        import traceback
-        traceback.print_exc()
-        return None
+        print(f"⚠️ Warning: Failed to save timestamped backup: {str(e)}")
+        print("📝 Main file upload was successful, continuing...")
+        # Don't raise the exception - let the main functionality continue
+    
+    # Clean up temp file
+    try:
+        os.remove(SERVICE_ACCOUNT_FILE)
+        print("🧹 Cleaned up temporary credentials file.")
+    except:
+        pass
+
+    return file_id
 
 def upload_excel_to_google_sheet(excel_buffer, sheet_id=None):
     import pandas as pd

@@ -4657,15 +4657,65 @@ def run_forecast_bom_analysis(gc_client=None):
 
         excel_buffer.seek(0)
 
-        print(f"\n✅ BOM ANALYSIS COMPLETE!")
-        print(f"   Components: {len(results_df)}")
-        print(f"   🔴 Urgent: {len(urgent)}, 🟡 Soon: {len(reorder_soon)}")
-        print(f"   Total Cost: ${results_df['Procurement_Cost'].sum():,.2f}")
+        # Print summary
+        print(f"\n💾 Results ready for download: {filename}")
+        print("   Sheets included:")
+        print("   ✅ Executive_Summary: Key metrics and status")
+        print("   ✅ MRP_Requirements: Complete requirements with procurement logic")
+        print("   ✅ Forecast: Real forecast data with UPC mapping")
+        print("   ✅ Procurement_Parameters: Lead time, MOQ, EOQ data")
+        print("   ✅ Current_Inventory: Inventory levels")
+        if len(urgent) > 0:
+            print(f"   🔴 Urgent_Reorders: {len(urgent)} components requiring immediate action")
+        if skipped_skus and len(skipped_skus) > 0:
+            print(f"   ⚠️  Skipped_SKUs: {len(skipped_skus)} SKUs without valid forecasts")
+        if missing_procurement_data:
+            print(f"   ⚠️  Missing_Procurement_Data: {len(set(missing_procurement_data))} items")
 
+        print("\n✅ MRP WITH PROCUREMENT LOGIC COMPLETE!\n")
+
+        # NEW: Upload BOM output to Google Sheets and Google Drive
+        try:
+            print("\n" + "="*80)
+            print("📤 UPLOADING BOM OUTPUT TO CLOUD SERVICES".center(80))
+            print("="*80)
+            
+            # Upload to Google Sheets
+            excel_buffer.seek(0)  # Reset buffer position
+            bom_sheet_url = upload_bom_excel_to_google_sheet(excel_buffer)
+            
+            # Upload to Google Drive
+            excel_buffer.seek(0)  # Reset buffer position again
+            bom_drive_file_id = upload_bom_to_google_drive_from_buffer(excel_buffer)
+            
+            print("\n✅ BOM output successfully uploaded to:")
+            print(f"   📊 Google Sheets: {bom_sheet_url}")
+            print(f"   📁 Google Drive File ID: {bom_drive_file_id}")
+            
+        except Exception as e:
+            print(f"\n⚠️ Warning: Failed to upload BOM output to cloud: {str(e)}")
+            print("   📥 Local download will still be available.")
+            import traceback
+            traceback.print_exc()
+
+        # Reset buffer for download
+        excel_buffer.seek(0)
+        
         return excel_buffer, filename
 
     except Exception as e:
-        print(f"\n❌ BOM ERROR: {str(e)}")
+        print(f"\n❌ ERROR: {str(e)}\n")
+        print("Please check:")
+        print("1. All BOM_CONFIG dictionary values are correct")
+        print("2. Service account credentials are available in environment")
+        print("3. ALL Google Sheets (5 sheets total) are shared with service account email:")
+        print("   - BOM Sheet")
+        print("   - SKU Reference Sheet")
+        print("   - Forecast Sheet")
+        print("   - Procurement Parameters Sheet")
+        print("   - Current Inventory Sheet")
+        print("4. Column letters in BOM_CONFIG match your actual sheets")
+        print("5. Worksheet names are correct (case-sensitive)")
         import traceback
         traceback.print_exc()
         return None, None

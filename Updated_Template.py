@@ -3417,33 +3417,35 @@ class EnhancedForecastingModel:
 # PLACEMENT: After EnhancedForecastingModel class, before upload_excel_to_google_sheet function
 
 # ==============================================================================
-# HERBAL GOODNESS - ENHANCED BOM EXPLOSION MODULE v2.0
+# ENHANCED BOM MODULE v2.0 - WRAPPED FOR WEBAPP INTEGRATION
 # ==============================================================================
-# This is an IMPROVED version of the BOM module with:
-# - Component Type/Category fetching from source sheet
-# - Additional KPIs and calculations
-# - Better inventory health metrics
-# - Supplier analysis
-# - ABC classification for components
-# - Improved procurement calculations
-# - Enhanced Excel output with more sheets
+# 
+# INSTRUCTIONS:
+# 1. Find the existing `run_forecast_bom_analysis` function in your Updated_Template.py
+# 2. Delete the ENTIRE existing function (from `def run_forecast_bom_analysis` to its end)
+# 3. Paste this entire code block in its place
+# 4. Make sure `import numpy as np` is in your imports at the top of the file
+#
+# PLACEMENT: After EnhancedForecastingModel class, before upload_excel_to_google_sheet function
 # ==============================================================================
+
 
 def run_forecast_bom_analysis(gc_client=None):
     """
-    ENHANCED Forecast BOM Analysis function v2.0
+    ENHANCED Forecast BOM Analysis function v2.0 - Wrapped for WebApp
     
-    IMPROVEMENTS OVER v1.0:
-    1. Fetches Component Type/Category from source BOM sheet
-    2. ABC Classification for components based on value
-    3. Days of Stock calculations
-    4. Stock Coverage Ratio
-    5. Order Priority scoring
-    6. Supplier grouping (if available)
-    7. Category-wise summary
-    8. Enhanced Executive Summary with more KPIs
-    9. Procurement Timeline sheet
-    10. Component Health Dashboard data
+    FEATURES:
+    - Component Type/Category fetching from source sheet
+    - ABC Classification (A/B/C based on value)
+    - Days of Stock calculation
+    - Stock Coverage Ratio
+    - Order Priority Score (0-100)
+    - ABC-based Safety Stock
+    - Category Summary sheet
+    - Procurement Timeline sheet
+    - Enhanced Executive Summary with more KPIs
+    - Professional Excel formatting with proper data types
+    - Emoji sheet names for visual clarity
     
     Returns: (excel_buffer, filename) tuple or (None, None) on failure
     """
@@ -3452,10 +3454,13 @@ def run_forecast_bom_analysis(gc_client=None):
     from io import BytesIO
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
     from openpyxl.utils import get_column_letter
-    from openpyxl.formatting.rule import ColorScaleRule, DataBarRule
+    from datetime import datetime, timedelta
     import numpy as np
     
-    # BOM-specific configuration
+    # ==========================================================================
+    # BOM CONFIGURATION
+    # ==========================================================================
+    
     BOM_CONFIG = {
         # BOM Data Sheet
         'SPREADSHEET_URL': 'https://docs.google.com/spreadsheets/d/1ddH2428mSdWJSyDRH72oUGDVsLQjNuAOQ24k-lOnf-I/edit?gid=1102477322#gid=1102477322',
@@ -3494,74 +3499,96 @@ def run_forecast_bom_analysis(gc_client=None):
         'FORECAST_HORIZON_DAYS': 180,
         'SAFETY_STOCK_PCT': 0.10,
         
-        # NEW: ABC Classification thresholds
-        'ABC_A_THRESHOLD': 0.70,  # Top 70% of value = A items
-        'ABC_B_THRESHOLD': 0.90,  # Next 20% = B items, remaining = C
+        # ABC Classification thresholds
+        'ABC_A_THRESHOLD': 0.70,
+        'ABC_B_THRESHOLD': 0.90,
         
-        # NEW: Safety stock by ABC class
-        'SAFETY_STOCK_A': 0.15,   # 15% for A items (higher service level)
-        'SAFETY_STOCK_B': 0.10,   # 10% for B items
-        'SAFETY_STOCK_C': 0.05,   # 5% for C items
+        # Safety stock by ABC class
+        'SAFETY_STOCK_A': 0.15,
+        'SAFETY_STOCK_B': 0.10,
+        'SAFETY_STOCK_C': 0.05,
     }
 
-    # --------------------------------------------------------------------------
+    # ==========================================================================
     # HELPER FUNCTIONS
-    # --------------------------------------------------------------------------
+    # ==========================================================================
 
     def column_letter_to_index(col_letter: str) -> int:
-        """Convert Excel-style column letter to 1-based column index."""
         col_letter = col_letter.upper()
         result = 0
         for char in col_letter:
             result = result * 26 + (ord(char) - ord('A') + 1)
         return result
 
-    # --------------------------------------------------------------------------
-    # ENHANCED BOM DATA FETCHING - NOW INCLUDES COMPONENT TYPE
-    # --------------------------------------------------------------------------
+    def safe_float(value, default=0.0):
+        """Safely convert a value to float, handling Series, arrays, and edge cases."""
+        try:
+            if isinstance(value, pd.Series):
+                value = value.iloc[0] if len(value) > 0 else default
+            elif isinstance(value, (list, np.ndarray)):
+                value = value[0] if len(value) > 0 else default
+            result = float(value) if pd.notna(value) else default
+            return result
+        except (TypeError, ValueError, IndexError):
+            return default
+
+    def safe_numeric_convert(series: pd.Series) -> pd.Series:
+        """Safely convert a series to numeric, handling string cleaning."""
+        if isinstance(series, pd.DataFrame):
+            series = series.iloc[:, 0]
+        return (
+            series
+            .astype(str)
+            .str.replace(r'[$,%]', '', regex=True)
+            .str.replace(',', '', regex=False)
+            .apply(pd.to_numeric, errors='coerce')
+            .fillna(0)
+        )
+
+    # ==========================================================================
+    # BOM DATA FETCHING
+    # ==========================================================================
 
     def fetch_bom_from_sheet(client, sheet_url: str, worksheet_name: str) -> pd.DataFrame:
-        """
-        ENHANCED: Now fetches Component Type/Category from the source sheet
-        """
         print("\n📥 Fetching BOM data from Google Sheets...")
         try:
             sheet = client.open_by_url(sheet_url)
             ws = sheet.worksheet(worksheet_name)
         except gspread.exceptions.SpreadsheetNotFound:
-            raise Exception(f"Spreadsheet not found / not shared – check URL: {sheet_url}")
+            raise Exception(f"Spreadsheet not found: {sheet_url}")
         except gspread.exceptions.WorksheetNotFound:
             raise Exception(f"Worksheet '{worksheet_name}' not found.")
 
         raw_vals = ws.get_all_values()
+        if not raw_vals:
+            raise Exception("BOM sheet is empty.")
+
+        # Build clean header - handle duplicates
         header_row = raw_vals[0]
-        
-        # Build clean header
         clean_hdr = []
-        seen = set()
+        seen = {}
         for i, h in enumerate(header_row):
             h = str(h).strip()
             if not h:
                 h = f"Col_{i+1}"
-            base = h
-            cnt = 1
-            while h in seen:
-                h = f"{base}_{cnt}"
-                cnt += 1
-            seen.add(h)
+            if h in seen:
+                seen[h] += 1
+                h = f"{h}_{seen[h]}"
+            else:
+                seen[h] = 0
             clean_hdr.append(h)
 
         df = pd.DataFrame(raw_vals[1:], columns=clean_hdr)
 
-        # ENHANCED column mapping - now includes Component Type
+        # Column mapping
         column_mapping = {
             'Parent Item Code': 'parent_item_code',
             'Parent SKU': 'parent_sku',
             'Component Item Code': 'component_item_code',
-            'Component Type': 'component_type',           # KEY: Component category
-            'Component Category': 'component_type',       # Alternative name
-            'Category': 'component_type',                 # Alternative name
-            'Type': 'component_type',                     # Alternative name
+            'Component Type': 'component_type',
+            'Component Category': 'component_type',
+            'Category': 'component_type',
+            'Type': 'component_type',
             'Component': 'component_description',
             'Component Name': 'component_description',
             'Quantity Required': 'quantity_required',
@@ -3578,7 +3605,7 @@ def run_forecast_bom_analysis(gc_client=None):
             'Cost': 'unit_cost',
             'Total Cost': 'total_cost',
             'Critical Path': 'critical_path',
-            'Supplier': 'supplier',                       # NEW: Supplier info
+            'Supplier': 'supplier',
             'Vendor': 'supplier',
             'Supplier Name': 'supplier',
         }
@@ -3588,69 +3615,50 @@ def run_forecast_bom_analysis(gc_client=None):
         numeric_cols = ['quantity_required', 'wastage_pct', 'net_requirement', 'unit_cost', 'total_cost']
         for col in numeric_cols:
             if col in df.columns:
-                df[col] = (
-                    df[col]
-                    .astype(str)
-                    .str.replace(r'[$,%]', '', regex=True)
-                    .str.replace(',', '')
-                    .pipe(pd.to_numeric, errors='coerce')
-                    .fillna(0)
-                )
+                df[col] = safe_numeric_convert(df[col])
 
-        # Final tidy-up
         df = df.dropna(subset=['parent_item_code', 'component_item_code'], how='all')
-        df['parent_sku'] = df['parent_sku'].fillna('Unknown SKU')
-        df['component_description'] = df['component_description'].fillna('Unknown Component')
+        df['parent_sku'] = df['parent_sku'].fillna('Unknown SKU') if 'parent_sku' in df.columns else 'Unknown SKU'
+        df['component_description'] = df['component_description'].fillna('Unknown Component') if 'component_description' in df.columns else 'Unknown Component'
         
-        # ENHANCED: Better handling of Component Type with categorization
+        # Component Type handling
         if 'component_type' not in df.columns:
             df['component_type'] = 'Uncategorized'
         else:
             df['component_type'] = df['component_type'].fillna('Uncategorized')
             df['component_type'] = df['component_type'].replace('', 'Uncategorized')
         
-        # Standardize component types
         type_mapping = {
-            'raw material': 'Raw Material',
-            'raw materials': 'Raw Material',
-            'packaging': 'Packaging',
-            'package': 'Packaging',
-            'label': 'Labels',
-            'labels': 'Labels',
-            'bottle': 'Packaging',
-            'bottles': 'Packaging',
-            'cap': 'Packaging',
-            'caps': 'Packaging',
-            'box': 'Packaging',
-            'boxes': 'Packaging',
-            'carton': 'Packaging',
-            'insert': 'Packaging',
-            'sleeve': 'Packaging',
-            'ingredient': 'Raw Material',
-            'ingredients': 'Raw Material',
+            'raw material': 'Raw Material', 'raw materials': 'Raw Material',
+            'packaging': 'Packaging', 'package': 'Packaging',
+            'label': 'Labels', 'labels': 'Labels',
+            'bottle': 'Packaging', 'bottles': 'Packaging',
+            'cap': 'Packaging', 'caps': 'Packaging',
+            'box': 'Packaging', 'boxes': 'Packaging',
+            'carton': 'Packaging', 'insert': 'Packaging', 'sleeve': 'Packaging',
+            'ingredient': 'Raw Material', 'ingredients': 'Raw Material',
             'other': 'Other',
         }
-        df['component_type'] = df['component_type'].str.lower().map(
-            lambda x: type_mapping.get(x, x.title() if x else 'Uncategorized')
-        )
         
-        df['uom'] = df['uom'].fillna('EA')
+        def standardize_type(t):
+            t_lower = str(t).lower().strip()
+            return type_mapping.get(t_lower, t.title() if t and t != 'Uncategorized' else 'Uncategorized')
         
-        # NEW: Supplier handling
+        df['component_type'] = df['component_type'].apply(standardize_type)
+        df['uom'] = df['uom'].fillna('EA') if 'uom' in df.columns else 'EA'
+        
         if 'supplier' not in df.columns:
             df['supplier'] = 'Unknown Supplier'
         else:
-            df['supplier'] = df['supplier'].fillna('Unknown Supplier')
+            df['supplier'] = df['supplier'].fillna('Unknown Supplier').replace('', 'Unknown Supplier')
 
-        print(f"✅ Cleaned data: {len(df)} valid BOM entries")
-        print(f"   Component Types found: {df['component_type'].nunique()}")
-        print(f"   Types: {', '.join(df['component_type'].unique()[:10])}")
-        
+        print(f"✅ Cleaned BOM data: {len(df)} valid entries")
+        print(f"   Component Types: {df['component_type'].nunique()}")
         return df
 
-    # --------------------------------------------------------------------------
-    # PROCUREMENT & INVENTORY DATA FETCHING (unchanged but with better logging)
-    # --------------------------------------------------------------------------
+    # ==========================================================================
+    # PROCUREMENT & INVENTORY FETCHING
+    # ==========================================================================
 
     def fetch_procurement_parameters(client, sheet_url: str, worksheet_name: str,
                                     component_col: str, lead_time_col: str, 
@@ -3660,7 +3668,7 @@ def run_forecast_bom_analysis(gc_client=None):
             sheet = client.open_by_url(sheet_url)
             worksheet = sheet.worksheet(worksheet_name)
         except Exception as e:
-            raise Exception(f"Failed to open procurement parameters sheet: {str(e)}")
+            raise Exception(f"Failed to open procurement sheet: {str(e)}")
 
         raw_data = worksheet.get_all_values()
         if not raw_data:
@@ -3705,10 +3713,10 @@ def run_forecast_bom_analysis(gc_client=None):
                 df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
 
         df['component_item_code'] = df['component_item_code'].astype(str).str.strip().str.upper()
-        df = df[df['component_item_code'].notna() & (df['component_item_code'] != "") & (df['component_item_code'] != "nan")]
+        df = df[df['component_item_code'].notna() & (df['component_item_code'] != "") & (df['component_item_code'].str.lower() != "nan")]
         df = df[['component_item_code', 'lead_time_days', 'moq', 'eoq']]
 
-        print(f"✅ Cleaned procurement data: {len(df)} valid entries")
+        print(f"✅ Procurement data: {len(df)} entries")
         return df
 
     def fetch_inventory_data(client, sheet_url: str, worksheet_name: str,
@@ -3758,24 +3766,17 @@ def run_forecast_bom_analysis(gc_client=None):
         if 'current_inventory' not in df.columns:
             df['current_inventory'] = 0
 
-        df['current_inventory'] = (
-            df['current_inventory']
-            .astype(str)
-            .str.replace(',', '')
-            .pipe(pd.to_numeric, errors='coerce')
-            .fillna(0)
-        )
-
+        df['current_inventory'] = safe_numeric_convert(df['current_inventory'])
         df['component_item_code'] = df['component_item_code'].astype(str).str.strip()
-        df = df[df['component_item_code'].notna() & (df['component_item_code'] != "") & (df['component_item_code'] != "nan")]
+        df = df[df['component_item_code'].notna() & (df['component_item_code'] != "") & (df['component_item_code'].str.lower() != "nan")]
         df = df[['component_item_code', 'current_inventory']]
 
-        print(f"✅ Cleaned inventory data: {len(df)} valid entries")
+        print(f"✅ Inventory data: {len(df)} entries")
         return df
 
-    # --------------------------------------------------------------------------
-    # FORECAST LOOKUP HELPERS (unchanged)
-    # --------------------------------------------------------------------------
+    # ==========================================================================
+    # FORECAST LOOKUP
+    # ==========================================================================
 
     def fetch_sku_upc_mapping(client, sheet_url: str, worksheet_name: str,
                              item_code_col: str, upc_col: str) -> Dict[str, str]:
@@ -3831,16 +3832,14 @@ def run_forecast_bom_analysis(gc_client=None):
                     continue
             if total_forecast > 0:
                 mapping[upc] = total_forecast
-        print(f"✅ Fetched forecasts for {len(mapping)} UPCs")
+        print(f"✅ Forecasts for {len(mapping)} UPCs")
         return mapping
 
     def fetch_forecast_demand_from_sheets(client, bom_df: pd.DataFrame, config: Dict):
-        print("\n" + "="*100)
-        print("🔍 FORECAST LOOKUP PROCESS".center(100))
-        print("="*100)
+        print("\n🔍 FORECAST LOOKUP - MULTI-SHEET INTEGRATION")
 
         unique_skus = bom_df.groupby('parent_item_code').agg({'parent_sku': 'first'}).reset_index()
-        print(f"\n📋 Found {len(unique_skus)} unique SKUs in BOM")
+        print(f"   Found {len(unique_skus)} unique SKUs in BOM")
 
         sku_to_upc = fetch_sku_upc_mapping(client, config['SKU_REFERENCE_URL'], config['SKU_REFERENCE_WORKSHEET'],
                                           config['SKU_ITEM_CODE_COLUMN'], config['SKU_UPC_COLUMN'])
@@ -3865,16 +3864,15 @@ def run_forecast_bom_analysis(gc_client=None):
             forecast_results.append({'SKU_ID': item_code, 'Description': sku_name, 'UPC': upc, 'Forecast_Demand': int(forecast)})
 
         forecast_df = pd.DataFrame(forecast_results)
-        print(f"✅ Successfully linked {len(forecast_df)} SKUs with forecasts")
+        print(f"✅ Linked {len(forecast_df)} SKUs with forecasts")
         return forecast_df, skipped_skus
 
-    # --------------------------------------------------------------------------
-    # ENHANCED BOM STRUCTURE & EXPLOSION - NOW PRESERVES COMPONENT TYPE
-    # --------------------------------------------------------------------------
+    # ==========================================================================
+    # BOM STRUCTURE & EXPLOSION
+    # ==========================================================================
 
     def build_bom_structure_from_sheet(bom_df: pd.DataFrame) -> Dict:
-        """ENHANCED: Now preserves component_type in the structure"""
-        print("\n🔧 Building hierarchical BOM structure...")
+        print("\n🔧 Building BOM structure...")
         bom_structure = {}
         all_parents = set(bom_df['parent_item_code'].unique())
         all_components = set(bom_df['component_item_code'].unique())
@@ -3884,49 +3882,55 @@ def run_forecast_bom_analysis(gc_client=None):
             parent_bom = bom_df[bom_df['parent_item_code'] == parent_code]
             components = []
             for _, row in parent_bom.iterrows():
-                component_code = row['component_item_code']
+                component_code = str(row['component_item_code'])
                 level = 1 if component_code in sub_assemblies else 2
-                components.append((
-                    component_code,
-                    row['quantity_required'],
-                    row['component_description'],
-                    level,
-                    row['wastage_pct'],
-                    row['unit_cost'],
-                    row['uom'],
-                    row['component_type'],    # NEW: Include component type
-                    row.get('supplier', 'Unknown Supplier')  # NEW: Include supplier
-                ))
+                
+                qty_req = safe_float(row['quantity_required'], 1.0)
+                wastage = safe_float(row['wastage_pct'], 0.0)
+                cost = safe_float(row['unit_cost'], 0.0)
+                
+                desc = row['component_description']
+                desc = str(desc.iloc[0]) if isinstance(desc, pd.Series) else str(desc)
+                
+                uom_val = row['uom']
+                uom_val = str(uom_val.iloc[0]) if isinstance(uom_val, pd.Series) else str(uom_val)
+                
+                comp_type = row['component_type']
+                comp_type = str(comp_type.iloc[0]) if isinstance(comp_type, pd.Series) else str(comp_type)
+                
+                supplier_val = row.get('supplier', 'Unknown Supplier')
+                supplier_val = str(supplier_val.iloc[0]) if isinstance(supplier_val, pd.Series) else str(supplier_val)
+                
+                components.append((component_code, qty_req, desc, level, wastage, cost, uom_val, comp_type, supplier_val))
             bom_structure[parent_code] = components
-        print(f"✅ Built BOM structure for {len(bom_structure)} parent items")
+        print(f"✅ BOM structure for {len(bom_structure)} parent items")
         return bom_structure
 
     def explode_bom(parent_id: str, parent_qty: float, bom_structure: Dict, requirements: Dict,
                    parent_chain: Set[str], root_sku: str) -> None:
-        """ENHANCED: Now tracks component_type and supplier"""
         if parent_id not in bom_structure:
             return
         for item in bom_structure[parent_id]:
             child_id, child_qty_per_parent, description, level, wastage_pct, unit_cost, uom, comp_type, supplier = item
+            
+            child_qty_per_parent = safe_float(child_qty_per_parent, 1.0)
+            wastage_pct = safe_float(wastage_pct, 0.0)
+            unit_cost = safe_float(unit_cost, 0.0)
+            level = int(safe_float(level, 2))
+            
             if child_id in parent_chain:
                 continue
-            gross_qty = parent_qty * child_qty_per_parent
+                
+            gross_qty = float(parent_qty) * child_qty_per_parent
             wastage_multiplier = 1 + (wastage_pct / 100)
             net_qty = gross_qty * wastage_multiplier
 
             if child_id not in requirements:
                 requirements[child_id] = {
-                    'gross_qty': 0, 
-                    'net_qty': 0, 
-                    'description': description, 
-                    'level': level,
-                    'parent_skus': set(), 
-                    'wastage_pct': wastage_pct, 
-                    'unit_cost': unit_cost,
-                    'lead_time': 0,
-                    'uom': uom,
-                    'component_type': comp_type,    # NEW
-                    'supplier': supplier             # NEW
+                    'gross_qty': 0.0, 'net_qty': 0.0, 'description': str(description), 
+                    'level': level, 'parent_skus': set(), 'wastage_pct': wastage_pct, 
+                    'unit_cost': unit_cost, 'lead_time': 0, 'uom': str(uom),
+                    'component_type': str(comp_type), 'supplier': str(supplier)
                 }
             req = requirements[child_id]
             req['gross_qty'] += gross_qty
@@ -3943,35 +3947,52 @@ def run_forecast_bom_analysis(gc_client=None):
         return all_requirements
 
     def calculate_final_requirements(requirements: Dict, inventory: Optional[Dict] = None) -> pd.DataFrame:
-        """ENHANCED: Now includes component_type and supplier"""
         if not requirements:
             return pd.DataFrame()
 
         results = []
         for comp_id, data in requirements.items():
-            gross_req = data['gross_qty']
-            net_req = data['net_qty']
-            unit_cost = data['unit_cost']
+            gross_req = safe_float(data['gross_qty'])
+            net_req = safe_float(data['net_qty'])
+            unit_cost = safe_float(data['unit_cost'])
+            wastage_pct = safe_float(data['wastage_pct'])
+            
             total_cost = net_req * unit_cost
-            current_inv = inventory.get(comp_id, 0) if inventory else 0
+            current_inv = safe_float(inventory.get(comp_id, 0)) if inventory else 0
             procurement_needed = max(0, net_req - current_inv)
             parent_skus_str = ', '.join(sorted(data['parent_skus']))
+            
+            description = data['description']
+            if isinstance(description, pd.Series):
+                description = description.iloc[0] if len(description) > 0 else 'Unknown'
+            
+            comp_type = data['component_type']
+            if isinstance(comp_type, pd.Series):
+                comp_type = comp_type.iloc[0] if len(comp_type) > 0 else 'Uncategorized'
+                
+            supplier = data['supplier']
+            if isinstance(supplier, pd.Series):
+                supplier = supplier.iloc[0] if len(supplier) > 0 else 'Unknown Supplier'
+                
+            uom = data['uom']
+            if isinstance(uom, pd.Series):
+                uom = uom.iloc[0] if len(uom) > 0 else 'EA'
 
             results.append({
                 'Component_ID': comp_id,
-                'Description': data['description'],
-                'Component_Type': data['component_type'],   # NEW
-                'Supplier': data['supplier'],                # NEW
-                'UoM': data['uom'],
-                'Level': data['level'],
+                'Description': str(description),
+                'Component_Type': str(comp_type),
+                'Supplier': str(supplier),
+                'UoM': str(uom),
+                'Level': int(safe_float(data['level'], 2)),
                 'Gross_Requirement': round(gross_req, 2),
-                'Wastage%': data['wastage_pct'],
+                'Wastage%': round(wastage_pct, 2),
                 'Net_Requirement': round(net_req, 2),
-                'Current_Inventory': current_inv,
+                'Current_Inventory': round(current_inv, 2),
                 'Procurement_Needed': round(procurement_needed, 2),
                 'Unit_Cost': round(unit_cost, 2),
                 'Total_Cost': round(total_cost, 2),
-                'Lead_Time': data['lead_time'],
+                'Lead_Time': int(safe_float(data['lead_time'], 0)),
                 'Parent_SKUs': parent_skus_str
             })
 
@@ -3979,34 +4000,20 @@ def run_forecast_bom_analysis(gc_client=None):
         df = df.sort_values(['Component_Type', 'Component_ID']).reset_index(drop=True)
         return df
 
-    # --------------------------------------------------------------------------
-    # NEW: ABC CLASSIFICATION FOR COMPONENTS
-    # --------------------------------------------------------------------------
+    # ==========================================================================
+    # ABC CLASSIFICATION
+    # ==========================================================================
 
     def calculate_abc_classification(df: pd.DataFrame, config: Dict) -> pd.DataFrame:
-        """
-        NEW FUNCTION: ABC Classification based on total procurement value
-        A = Top 70% of value (high priority)
-        B = Next 20% of value (medium priority)
-        C = Bottom 10% of value (low priority)
-        """
         print("\n📊 Calculating ABC Classification...")
-        
         df = df.copy()
-        
-        # Calculate total value for each component
         df['Total_Value'] = df['Net_Requirement'] * df['Unit_Cost']
-        
-        # Sort by value descending
         df = df.sort_values('Total_Value', ascending=False)
         
-        # Calculate cumulative percentage
         total_value = df['Total_Value'].sum()
         if total_value > 0:
             df['Cumulative_Value'] = df['Total_Value'].cumsum()
             df['Cumulative_Pct'] = df['Cumulative_Value'] / total_value
-            
-            # Assign ABC class
             conditions = [
                 df['Cumulative_Pct'] <= config['ABC_A_THRESHOLD'],
                 df['Cumulative_Pct'] <= config['ABC_B_THRESHOLD'],
@@ -4014,42 +4021,25 @@ def run_forecast_bom_analysis(gc_client=None):
             choices = ['A', 'B']
             df['ABC_Class'] = np.select(conditions, choices, default='C')
         else:
-            df['Cumulative_Value'] = 0
-            df['Cumulative_Pct'] = 0
             df['ABC_Class'] = 'C'
         
-        # Drop helper columns
         df = df.drop(columns=['Cumulative_Value', 'Cumulative_Pct'], errors='ignore')
         
-        # Count by class
         class_counts = df['ABC_Class'].value_counts()
-        print(f"   Class A (High Value): {class_counts.get('A', 0)} components")
-        print(f"   Class B (Medium Value): {class_counts.get('B', 0)} components")
-        print(f"   Class C (Low Value): {class_counts.get('C', 0)} components")
-        
+        print(f"   A: {class_counts.get('A', 0)}, B: {class_counts.get('B', 0)}, C: {class_counts.get('C', 0)}")
         return df
 
-    # --------------------------------------------------------------------------
-    # ENHANCED: PROCUREMENT LOGIC WITH MORE KPIs
-    # --------------------------------------------------------------------------
+    # ==========================================================================
+    # PROCUREMENT CALCULATIONS
+    # ==========================================================================
 
     def calculate_rop_and_procurement(requirements_df: pd.DataFrame, procurement_df: pd.DataFrame,
                                      inventory_df: pd.DataFrame, config: Dict) -> Tuple[pd.DataFrame, List[str]]:
-        """
-        ENHANCED: Now includes:
-        - Days of Stock calculation
-        - Stock Coverage Ratio
-        - Order Priority Score
-        - ABC-based safety stock
-        """
-        print("\n" + "="*100)
-        print("🔄 ENHANCED PROCUREMENT CALCULATIONS".center(100))
-        print("="*100)
+        print("\n🔄 PROCUREMENT CALCULATIONS...")
 
         df = requirements_df.copy()
         df['Component_ID'] = df['Component_ID'].astype(str).str.strip().str.upper()
 
-        # Merge procurement and inventory data
         procurement_df = procurement_df.copy()
         inventory_df = inventory_df.copy()
         procurement_df['component_item_code'] = procurement_df['component_item_code'].str.upper()
@@ -4071,16 +4061,15 @@ def run_forecast_bom_analysis(gc_client=None):
         missing_data = []
         horizon_days = config['FORECAST_HORIZON_DAYS']
 
-        # Initialize new columns
         df['Daily_Demand'] = 0.0
         df['Safety_Stock'] = 0.0
         df['Calculated_ROP'] = 0.0
         df['Recommended_Order_Qty'] = 0.0
         df['Procurement_Cost'] = 0.0
         df['Order_Status'] = ''
-        df['Days_of_Stock'] = 0.0           # NEW
-        df['Stock_Coverage_Ratio'] = 0.0    # NEW
-        df['Order_Priority_Score'] = 0      # NEW
+        df['Days_of_Stock'] = 0.0
+        df['Stock_Coverage_Ratio'] = 0.0
+        df['Order_Priority_Score'] = 0
 
         for idx, row in df.iterrows():
             component_id = row['Component_ID']
@@ -4097,11 +4086,9 @@ def run_forecast_bom_analysis(gc_client=None):
             if moq == 0 and eoq == 0:
                 missing_data.append(f"{component_id}: Missing MOQ and EOQ")
 
-            # Daily demand
             daily_demand = net_req / horizon_days if horizon_days > 0 else 0
             df.at[idx, 'Daily_Demand'] = round(daily_demand, 4)
 
-            # NEW: ABC-based safety stock
             if abc_class == 'A':
                 safety_stock_pct = config['SAFETY_STOCK_A']
             elif abc_class == 'B':
@@ -4112,30 +4099,24 @@ def run_forecast_bom_analysis(gc_client=None):
             safety_stock = safety_stock_pct * net_req
             df.at[idx, 'Safety_Stock'] = round(safety_stock, 2)
 
-            # ROP calculation
             calculated_rop = (daily_demand * lead_time) + safety_stock
             df.at[idx, 'Calculated_ROP'] = round(calculated_rop, 2)
 
-            # NEW: Days of Stock
             days_of_stock = current_inv / daily_demand if daily_demand > 0 else 999
             df.at[idx, 'Days_of_Stock'] = round(min(days_of_stock, 999), 1)
 
-            # NEW: Stock Coverage Ratio (Current Stock / ROP)
             coverage_ratio = current_inv / calculated_rop if calculated_rop > 0 else 999
             df.at[idx, 'Stock_Coverage_Ratio'] = round(min(coverage_ratio, 10), 2)
 
-            # Recommended order quantity
             shortfall = max(0, calculated_rop - current_inv)
             roq = max(shortfall, moq, eoq)
             if moq > 0 and roq > moq:
                 roq = ((roq // moq) + (1 if roq % moq > 0 else 0)) * moq
             df.at[idx, 'Recommended_Order_Qty'] = round(roq, 2)
 
-            # Procurement cost
             procurement_cost = roq * unit_cost if unit_cost > 0 else 0
             df.at[idx, 'Procurement_Cost'] = round(procurement_cost, 2)
 
-            # Order status
             if current_inv < calculated_rop:
                 df.at[idx, 'Order_Status'] = '🔴 Urgent Reorder'
             elif current_inv < (calculated_rop + safety_stock):
@@ -4143,30 +4124,23 @@ def run_forecast_bom_analysis(gc_client=None):
             else:
                 df.at[idx, 'Order_Status'] = '🟢 OK'
 
-            # NEW: Order Priority Score (higher = more urgent)
-            # Based on: days of stock, ABC class, coverage ratio
             priority_score = 0
             if days_of_stock < lead_time:
-                priority_score += 50  # Critical - will stockout before reorder arrives
+                priority_score += 50
             elif days_of_stock < lead_time * 1.5:
-                priority_score += 30  # Warning
-            
+                priority_score += 30
             if abc_class == 'A':
                 priority_score += 30
             elif abc_class == 'B':
                 priority_score += 15
-            
             if coverage_ratio < 0.5:
                 priority_score += 20
             elif coverage_ratio < 1.0:
                 priority_score += 10
-            
             df.at[idx, 'Order_Priority_Score'] = priority_score
 
-        # Clean up helper columns
         df = df.drop(columns=[c for c in df.columns if c.startswith('component_item_code')], errors='ignore')
 
-        # Reorder columns
         column_order = [
             'Component_ID', 'Description', 'Component_Type', 'Supplier', 'ABC_Class',
             'UoM', 'Level', 'Gross_Requirement', 'Wastage%', 'Net_Requirement',
@@ -4180,22 +4154,23 @@ def run_forecast_bom_analysis(gc_client=None):
         remaining_columns = [col for col in df.columns if col not in column_order]
         df = df[final_columns + remaining_columns]
 
-        # Sort by priority score descending
         df = df.sort_values('Order_Priority_Score', ascending=False).reset_index(drop=True)
+        df = df.drop(columns=['Current_Inventory', 'Lead_Time'], errors='ignore')
 
-        print(f"✅ Calculations complete")
+        urgent_cnt = len(df[df['Order_Status'] == '🔴 Urgent Reorder'])
+        soon_cnt = len(df[df['Order_Status'] == '🟡 Reorder Soon'])
+        ok_cnt = len(df[df['Order_Status'] == '🟢 OK'])
+        print(f"   🔴 Urgent: {urgent_cnt}, 🟡 Soon: {soon_cnt}, 🟢 OK: {ok_cnt}")
         
         return df, list(set(missing_data))
 
-    # --------------------------------------------------------------------------
-    # NEW: CATEGORY-WISE SUMMARY
-    # --------------------------------------------------------------------------
+    # ==========================================================================
+    # CATEGORY SUMMARY & TIMELINE
+    # ==========================================================================
 
     def create_category_summary(results_df: pd.DataFrame) -> pd.DataFrame:
-        """
-        NEW FUNCTION: Summary by Component Type/Category
-        """
-        print("\n📊 Creating category-wise summary...")
+        if len(results_df) == 0:
+            return pd.DataFrame()
         
         summary = results_df.groupby('Component_Type').agg({
             'Component_ID': 'count',
@@ -4211,39 +4186,25 @@ def run_forecast_bom_analysis(gc_client=None):
             'Days_of_Stock': 'Avg_Days_of_Stock'
         })
         
-        # Add urgent count by category
         urgent_by_cat = results_df[results_df['Order_Status'] == '🔴 Urgent Reorder'].groupby('Component_Type').size()
         summary['Urgent_Count'] = urgent_by_cat.reindex(summary.index).fillna(0).astype(int)
         
-        # Calculate percentage of total
         total_cost = summary['Total_Procurement_Cost'].sum()
-        summary['Cost_Percentage'] = (summary['Total_Procurement_Cost'] / total_cost * 100).round(1)
+        if total_cost > 0:
+            summary['Cost_Percentage'] = (summary['Total_Procurement_Cost'] / total_cost * 100).round(1)
+        else:
+            summary['Cost_Percentage'] = 0
         
         summary = summary.sort_values('Total_Procurement_Cost', ascending=False).reset_index()
-        
         return summary
 
-    # --------------------------------------------------------------------------
-    # NEW: PROCUREMENT TIMELINE
-    # --------------------------------------------------------------------------
-
     def create_procurement_timeline(results_df: pd.DataFrame) -> pd.DataFrame:
-        """
-        NEW FUNCTION: Creates a timeline showing when orders should be placed
-        """
-        print("\n📅 Creating procurement timeline...")
-        
-        from datetime import datetime, timedelta
-        
         today = datetime.now().date()
-        
-        # Filter to items that need ordering
         needs_order = results_df[results_df['Recommended_Order_Qty'] > 0].copy()
         
         if len(needs_order) == 0:
             return pd.DataFrame()
         
-        # Calculate order-by date (today if urgent, otherwise based on days of stock vs lead time)
         def calc_order_date(row):
             if row['Order_Status'] == '🔴 Urgent Reorder':
                 return today
@@ -4251,14 +4212,13 @@ def run_forecast_bom_analysis(gc_client=None):
                 days_until_order = max(0, row['Days_of_Stock'] - row['lead_time_days'])
                 return today + timedelta(days=int(days_until_order))
             else:
-                return today + timedelta(days=30)  # Default to 30 days
+                return today + timedelta(days=30)
         
         needs_order['Order_By_Date'] = needs_order.apply(calc_order_date, axis=1)
         needs_order['Expected_Arrival'] = needs_order.apply(
             lambda r: r['Order_By_Date'] + timedelta(days=int(r['lead_time_days'])), axis=1
         )
         
-        # Select relevant columns
         timeline = needs_order[[
             'Component_ID', 'Description', 'Component_Type', 'Supplier',
             'Order_Status', 'Order_Priority_Score',
@@ -4269,16 +4229,16 @@ def run_forecast_bom_analysis(gc_client=None):
         
         timeline['Order_By_Date'] = timeline['Order_By_Date'].astype(str)
         timeline['Expected_Arrival'] = timeline['Expected_Arrival'].astype(str)
-        
         return timeline
 
-    # --------------------------------------------------------------------------
-    # ENHANCED: EXECUTIVE SUMMARY WITH MORE KPIs
-    # --------------------------------------------------------------------------
+    # ==========================================================================
+    # EXECUTIVE SUMMARY
+    # ==========================================================================
 
     def create_executive_summary(results_df: pd.DataFrame, forecast_df: pd.DataFrame,
                                 skipped_skus: List[Dict], category_summary: pd.DataFrame) -> pd.DataFrame:
-        """ENHANCED: Now includes many more KPIs"""
+        if len(results_df) == 0:
+            return pd.DataFrame({'Metric': ['No data'], 'Value': [''], 'Unit': ['']})
         
         total_components = len(results_df)
         total_forecast = forecast_df['Forecast_Demand'].sum()
@@ -4293,23 +4253,16 @@ def run_forecast_bom_analysis(gc_client=None):
         avg_lead = results_df['lead_time_days'].mean()
         max_lead = results_df['lead_time_days'].max()
         
-        # NEW KPIs
         avg_days_of_stock = results_df['Days_of_Stock'].replace(999, np.nan).mean()
         avg_coverage_ratio = results_df['Stock_Coverage_Ratio'].replace([999, 10], np.nan).mean()
         
-        # ABC counts
         abc_a_cnt = len(results_df[results_df['ABC_Class'] == 'A'])
         abc_b_cnt = len(results_df[results_df['ABC_Class'] == 'B'])
         abc_c_cnt = len(results_df[results_df['ABC_Class'] == 'C'])
         
-        # Category counts
         num_categories = results_df['Component_Type'].nunique()
         top_category = results_df.groupby('Component_Type')['Procurement_Cost'].sum().idxmax() if len(results_df) > 0 else 'N/A'
-        
-        # Supplier counts
         num_suppliers = results_df['Supplier'].nunique()
-        
-        # High priority items
         high_priority_cnt = len(results_df[results_df['Order_Priority_Score'] >= 50])
 
         top5_cost = results_df.nlargest(5, 'Procurement_Cost')[['Component_ID', 'Description', 'Procurement_Cost']]
@@ -4317,7 +4270,6 @@ def run_forecast_bom_analysis(gc_client=None):
 
         summary_data = []
 
-        # 1. Overview
         summary_data.append({'Metric': '═══ OVERVIEW ═══', 'Value': '', 'Unit': ''})
         summary_data.append({'Metric': 'Report Generated', 'Value': pd.Timestamp.now().strftime('%Y-%m-%d %H:%M'), 'Unit': ''})
         summary_data.append({'Metric': 'Forecast Horizon', 'Value': '6 months', 'Unit': ''})
@@ -4329,7 +4281,6 @@ def run_forecast_bom_analysis(gc_client=None):
         summary_data.append({'Metric': 'SKUs Skipped', 'Value': len(skipped_skus), 'Unit': 'SKUs'})
         summary_data.append({'Metric': '', 'Value': '', 'Unit': ''})
 
-        # 2. Financial
         summary_data.append({'Metric': '═══ FINANCIAL ═══', 'Value': '', 'Unit': ''})
         summary_data.append({'Metric': 'Total Procurement Cost', 'Value': f'${total_proc_cost:,.2f}', 'Unit': ''})
         summary_data.append({'Metric': 'Total Inventory Value', 'Value': f'${total_value:,.2f}', 'Unit': ''})
@@ -4338,7 +4289,6 @@ def run_forecast_bom_analysis(gc_client=None):
         summary_data.append({'Metric': 'Urgent Cost %', 'Value': f'{urgent_cost/total_proc_cost*100 if total_proc_cost else 0:.1f}%', 'Unit': ''})
         summary_data.append({'Metric': '', 'Value': '', 'Unit': ''})
 
-        # 3. Inventory Health
         summary_data.append({'Metric': '═══ INVENTORY HEALTH ═══', 'Value': '', 'Unit': ''})
         summary_data.append({'Metric': '🔴 Urgent Reorder', 'Value': urgent_cnt, 'Unit': 'components'})
         summary_data.append({'Metric': '🟡 Reorder Soon', 'Value': soon_cnt, 'Unit': 'components'})
@@ -4349,39 +4299,35 @@ def run_forecast_bom_analysis(gc_client=None):
         summary_data.append({'Metric': 'Average Coverage Ratio', 'Value': f'{avg_coverage_ratio:.2f}' if pd.notna(avg_coverage_ratio) else 'N/A', 'Unit': ''})
         summary_data.append({'Metric': '', 'Value': '', 'Unit': ''})
 
-        # 4. ABC Analysis
         summary_data.append({'Metric': '═══ ABC CLASSIFICATION ═══', 'Value': '', 'Unit': ''})
         summary_data.append({'Metric': 'Class A (High Value)', 'Value': abc_a_cnt, 'Unit': 'components'})
         summary_data.append({'Metric': 'Class B (Medium Value)', 'Value': abc_b_cnt, 'Unit': 'components'})
         summary_data.append({'Metric': 'Class C (Low Value)', 'Value': abc_c_cnt, 'Unit': 'components'})
         summary_data.append({'Metric': '', 'Value': '', 'Unit': ''})
 
-        # 5. Lead-Time
         summary_data.append({'Metric': '═══ LEAD-TIME ═══', 'Value': '', 'Unit': ''})
         summary_data.append({'Metric': 'Average Lead Time', 'Value': f'{avg_lead:.1f}', 'Unit': 'days'})
         summary_data.append({'Metric': 'Maximum Lead Time', 'Value': f'{max_lead:.0f}', 'Unit': 'days'})
         summary_data.append({'Metric': 'Critical-Path Components', 'Value': len(results_df[results_df['lead_time_days'] == max_lead]), 'Unit': ''})
         summary_data.append({'Metric': '', 'Value': '', 'Unit': ''})
 
-        # 6. Top Category
-        summary_data.append({'Metric': '═══ TOP CATEGORY ═══', 'Value': '', 'Unit': ''})
-        summary_data.append({'Metric': 'Highest Cost Category', 'Value': top_category, 'Unit': ''})
-        for _, row in category_summary.head(3).iterrows():
-            summary_data.append({
-                'Metric': f"   {row['Component_Type']}", 
-                'Value': f"${row['Total_Procurement_Cost']:,.2f}", 
-                'Unit': f"({row['Cost_Percentage']:.1f}%)"
-            })
-        summary_data.append({'Metric': '', 'Value': '', 'Unit': ''})
+        if len(category_summary) > 0:
+            summary_data.append({'Metric': '═══ TOP CATEGORIES ═══', 'Value': '', 'Unit': ''})
+            summary_data.append({'Metric': 'Highest Cost Category', 'Value': top_category, 'Unit': ''})
+            for _, row in category_summary.head(3).iterrows():
+                summary_data.append({
+                    'Metric': f"   {row['Component_Type']}", 
+                    'Value': f"${row['Total_Procurement_Cost']:,.2f}", 
+                    'Unit': f"({row['Cost_Percentage']:.1f}%)"
+                })
+            summary_data.append({'Metric': '', 'Value': '', 'Unit': ''})
 
-        # 7. Top 5 Cost Drivers
         summary_data.append({'Metric': '═══ TOP 5 COST DRIVERS ═══', 'Value': '', 'Unit': ''})
         for _, row in top5_cost.iterrows():
             summary_data.append({'Metric': f"{row['Component_ID']} – {row['Description'][:30]}",
                                 'Value': f"${row['Procurement_Cost']:,.2f}", 'Unit': ''})
         summary_data.append({'Metric': '', 'Value': '', 'Unit': ''})
 
-        # 8. Top 5 Urgent
         if len(top5_urgent) > 0:
             summary_data.append({'Metric': '═══ TOP 5 URGENT (by Priority) ═══', 'Value': '', 'Unit': ''})
             for _, row in top5_urgent.iterrows():
@@ -4390,14 +4336,13 @@ def run_forecast_bom_analysis(gc_client=None):
 
         return pd.DataFrame(summary_data)
 
-    # --------------------------------------------------------------------------
-    # EXCEL FORMATTING (Enhanced)
-    # --------------------------------------------------------------------------
+    # ==========================================================================
+    # EXCEL FORMATTING
+    # ==========================================================================
 
     def format_excel_output(writer, results_df: pd.DataFrame, forecast_df: pd.DataFrame,
                            procurement_df: pd.DataFrame, inventory_df: pd.DataFrame,
                            skipped_skus: List[Dict], missing_data: List[str]) -> None:
-        """ENHANCED Excel formatting with conditional formatting"""
 
         workbook = writer.book
 
@@ -4406,34 +4351,79 @@ def run_forecast_bom_analysis(gc_client=None):
         urgent_fill = PatternFill(start_color='FFC7CE', end_color='FFC7CE', fill_type='solid')
         soon_fill = PatternFill(start_color='FFEB9C', end_color='FFEB9C', fill_type='solid')
         ok_fill = PatternFill(start_color='C6EFCE', end_color='C6EFCE', fill_type='solid')
-        class_a_fill = PatternFill(start_color='DBEEF3', end_color='DBEEF3', fill_type='solid')
+        section_header_fill = PatternFill(start_color='4472C4', end_color='4472C4', fill_type='solid')
+        section_header_font = Font(name='Calibri', size=11, bold=True, color='FFFFFF')
         thin_border = Border(left=Side(style='thin'), right=Side(style='thin'),
                             top=Side(style='thin'), bottom=Side(style='thin'))
+        
+        CURRENCY_FORMAT = '$#,##0.00'
+        CURRENCY_WHOLE_FORMAT = '$#,##0'
+        NUMBER_FORMAT = '#,##0'
+        NUMBER_DECIMAL_FORMAT = '#,##0.00'
+        PERCENT_FORMAT = '0.0%'
+        
+        currency_columns = ['Unit_Cost', 'Procurement_Cost', 'Total_Cost', 'Total_Value',
+                           'Total_Procurement_Cost', 'Urgent_Cost', 'Cost']
+        quantity_columns = ['Gross_Requirement', 'Net_Requirement', 'Calculated_ROP', 'ROP',
+                           'Recommended_Order_Qty', 'Procurement_Needed', 'moq', 'eoq', 'MOQ', 'EOQ',
+                           'Safety_Stock', 'current_inventory', 'Current_Inventory',
+                           'Forecast_Demand', 'Total_Net_Requirement', 'Component_Count', 'Urgent_Count']
+
+        def smart_number_format(value, is_currency=False):
+            try:
+                val = float(value) if value else 0
+                if is_currency:
+                    return CURRENCY_WHOLE_FORMAT if abs(val) >= 100 else CURRENCY_FORMAT
+                else:
+                    return NUMBER_FORMAT if abs(val) >= 10 else NUMBER_DECIMAL_FORMAT
+            except:
+                return NUMBER_DECIMAL_FORMAT
+
+        def apply_column_formatting(worksheet, df):
+            if df is None or len(df) == 0:
+                return
+            for col_idx, col_name in enumerate(df.columns, 1):
+                col_letter = get_column_letter(col_idx)
+                is_currency = any(curr in col_name for curr in currency_columns)
+                is_quantity = any(qty in col_name for qty in quantity_columns)
+                is_percent = 'Percentage' in col_name or 'Pct' in col_name or col_name == 'Wastage%'
+                
+                for row in range(2, worksheet.max_row + 1):
+                    cell = worksheet[f'{col_letter}{row}']
+                    cell_value = cell.value
+                    try:
+                        if cell_value is not None and cell_value != '':
+                            if is_currency:
+                                cell.number_format = smart_number_format(cell_value, is_currency=True)
+                            elif is_percent:
+                                cell.number_format = PERCENT_FORMAT
+                            elif is_quantity:
+                                cell.number_format = smart_number_format(cell_value, is_currency=False)
+                    except:
+                        pass
 
         for sheet_name in workbook.sheetnames:
             worksheet = workbook[sheet_name]
 
-            # Headers
             for cell in worksheet[1]:
                 cell.font = header_font
                 cell.fill = header_fill
                 cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
                 cell.border = thin_border
 
-            # Auto-adjust column widths
             for column in worksheet.columns:
                 max_length = 0
                 column_letter = get_column_letter(column[0].column)
                 for cell in column:
                     try:
-                        if len(str(cell.value)) > max_length:
-                            max_length = len(str(cell.value))
+                        cell_len = len(str(cell.value)) if cell.value else 0
+                        if cell_len > max_length:
+                            max_length = cell_len
                     except:
                         pass
-                adjusted_width = min(max_length + 2, 50)
-                worksheet.column_dimensions[column_letter].width = adjusted_width
+                adjusted_width = min(max_length + 3, 50)
+                worksheet.column_dimensions[column_letter].width = max(adjusted_width, 10)
 
-            # Borders for all cells
             for row in worksheet.iter_rows(min_row=1, max_row=worksheet.max_row,
                                           min_col=1, max_col=worksheet.max_column):
                 for cell in row:
@@ -4441,9 +4431,8 @@ def run_forecast_bom_analysis(gc_client=None):
                         cell.border = thin_border
                         cell.alignment = Alignment(vertical='center')
 
-            # Sheet-specific formatting
-            if sheet_name == 'MRP_Requirements':
-                # Color rows based on Order_Status
+            if sheet_name == '📦 MRP Requirements':
+                apply_column_formatting(worksheet, results_df)
                 if 'Order_Status' in results_df.columns:
                     status_col_idx = results_df.columns.get_loc('Order_Status') + 1
                     for row in range(2, worksheet.max_row + 1):
@@ -4458,31 +4447,97 @@ def run_forecast_bom_analysis(gc_client=None):
                         if fill_color:
                             for col in range(1, worksheet.max_column + 1):
                                 worksheet.cell(row=row, column=col).fill = fill_color
+                worksheet.freeze_panes = 'C2'
 
-                worksheet.freeze_panes = 'B2'
-
-            elif sheet_name == 'Urgent_Reorders':
+            elif sheet_name == '🚨 Urgent Reorders':
+                apply_column_formatting(worksheet, results_df)
                 for row in range(2, worksheet.max_row + 1):
                     for col in range(1, worksheet.max_column + 1):
                         worksheet.cell(row=row, column=col).fill = urgent_fill
+                worksheet.freeze_panes = 'C2'
+
+            elif sheet_name == '🟡 Reorder Soon':
+                apply_column_formatting(worksheet, results_df)
+                for row in range(2, worksheet.max_row + 1):
+                    for col in range(1, worksheet.max_column + 1):
+                        worksheet.cell(row=row, column=col).fill = soon_fill
+                worksheet.freeze_panes = 'C2'
+
+            elif sheet_name == '📈 Forecasted Demand':
+                apply_column_formatting(worksheet, forecast_df)
                 worksheet.freeze_panes = 'A2'
 
-            elif sheet_name == 'Category_Summary':
-                worksheet.freeze_panes = 'A2'
+            elif sheet_name == '📊 Executive Summary':
+                worksheet.column_dimensions['A'].width = 45
+                worksheet.column_dimensions['B'].width = 25
+                worksheet.column_dimensions['C'].width = 15
 
-            elif sheet_name == 'Procurement_Timeline':
+                for row_idx in range(1, worksheet.max_row + 1):
+                    metric_cell = worksheet.cell(row=row_idx, column=1)
+                    value_cell = worksheet.cell(row=row_idx, column=2)
+                    unit_cell = worksheet.cell(row=row_idx, column=3)
+                    
+                    metric_text = str(metric_cell.value).strip() if metric_cell.value else ''
+                    value_text = str(value_cell.value).strip() if value_cell.value else ''
+                    
+                    if metric_text.startswith('═══'):
+                        for col in range(1, 4):
+                            cell = worksheet.cell(row=row_idx, column=col)
+                            cell.fill = section_header_fill
+                            cell.font = section_header_font
+                            cell.alignment = Alignment(horizontal='center', vertical='center')
+                        continue
+                    
+                    value_cell.alignment = Alignment(horizontal='right', vertical='center')
+                    unit_cell.alignment = Alignment(horizontal='left', vertical='center')
+                    
+                    if value_text:
+                        if value_text.startswith('$'):
+                            try:
+                                num_str = value_text.replace('$', '').replace(',', '')
+                                num_val = float(num_str)
+                                value_cell.value = num_val
+                                value_cell.number_format = CURRENCY_WHOLE_FORMAT if num_val >= 100 else CURRENCY_FORMAT
+                            except:
+                                pass
+                        elif value_text.endswith('%'):
+                            try:
+                                num_str = value_text.replace('%', '').replace(',', '')
+                                num_val = float(num_str) / 100
+                                value_cell.value = num_val
+                                value_cell.number_format = PERCENT_FORMAT
+                            except:
+                                pass
+                        elif value_text.replace(',', '').replace('.', '').replace('-', '').isdigit():
+                            try:
+                                num_val = float(value_text.replace(',', ''))
+                                value_cell.value = num_val
+                                value_cell.number_format = NUMBER_FORMAT if num_val >= 10 else NUMBER_DECIMAL_FORMAT
+                            except:
+                                pass
+                    
+                    if metric_text.startswith('🔴'):
+                        for col in range(1, 4):
+                            worksheet.cell(row=row_idx, column=col).fill = urgent_fill
+                    elif metric_text.startswith('🟡'):
+                        for col in range(1, 4):
+                            worksheet.cell(row=row_idx, column=col).fill = soon_fill
+                    elif metric_text.startswith('🟢'):
+                        for col in range(1, 4):
+                            worksheet.cell(row=row_idx, column=col).fill = ok_fill
+
                 worksheet.freeze_panes = 'A2'
 
         print("✅ Applied professional Excel formatting")
 
     # ==========================================================================
-    # MAIN BOM EXECUTION LOGIC
+    # MAIN EXECUTION
     # ==========================================================================
 
     try:
-        print("\n" + "="*100)
-        print("🚀 ENHANCED BOM EXPLOSION SYSTEM v2.0".center(100))
-        print("="*100)
+        print("\n" + "="*80)
+        print("🚀 ENHANCED BOM ANALYSIS v2.0".center(80))
+        print("="*80)
 
         # 1. Authenticate
         if gc_client is None:
@@ -4499,7 +4554,7 @@ def run_forecast_bom_analysis(gc_client=None):
                       'https://www.googleapis.com/auth/drive.readonly']
             creds = Credentials.from_service_account_file(credentials_file, scopes=scopes)
             client = gspread.authorize(creds)
-            print("✅ Authenticated with Google Sheets API")
+            print("✅ Authenticated")
 
             try:
                 os.remove(credentials_file)
@@ -4507,15 +4562,15 @@ def run_forecast_bom_analysis(gc_client=None):
                 pass
         else:
             client = gc_client
-            print("✅ Reusing existing Google Sheets connection")
+            print("✅ Reusing existing connection")
 
-        # 2. Fetch BOM (now with Component Type)
+        # 2. Fetch BOM
         bom_df = fetch_bom_from_sheet(client, BOM_CONFIG['SPREADSHEET_URL'], BOM_CONFIG['WORKSHEET_NAME'])
 
         # 3. Build BOM structure
         bom_structure = build_bom_structure_from_sheet(bom_df)
 
-        # 4. Get forecast data
+        # 4. Get forecast
         forecast_df, skipped_skus = fetch_forecast_demand_from_sheets(client, bom_df, BOM_CONFIG)
 
         if len(forecast_df) == 0:
@@ -4525,121 +4580,95 @@ def run_forecast_bom_analysis(gc_client=None):
         # 5. Aggregate requirements
         requirements = aggregate_requirements(forecast_df, bom_structure)
 
-        # 6. Calculate final requirements
+        # 6. Final requirements
         results_df = calculate_final_requirements(requirements, inventory=None)
 
         # 7. ABC Classification
         results_df = calculate_abc_classification(results_df, BOM_CONFIG)
 
-        # 8. Fetch procurement parameters
+        # 8. Procurement parameters
         procurement_df = fetch_procurement_parameters(client, BOM_CONFIG['PROCUREMENT_PARAMS_URL'],
                                                      BOM_CONFIG['PROCUREMENT_PARAMS_WORKSHEET'],
                                                      'A', BOM_CONFIG['PROCUREMENT_LEAD_TIME_COLUMN'],
                                                      BOM_CONFIG['PROCUREMENT_MOQ_COLUMN'],
                                                      BOM_CONFIG['PROCUREMENT_EOQ_COLUMN'])
 
-        # 9. Fetch current inventory
+        # 9. Inventory
         inventory_df = fetch_inventory_data(client, BOM_CONFIG['INVENTORY_URL'],
                                            BOM_CONFIG['INVENTORY_WORKSHEET'], 'A',
                                            BOM_CONFIG['INVENTORY_QTY_COLUMN'])
 
-        # 10. Enhanced ROP & procurement calculations
+        # 10. ROP & procurement
         results_df, missing_procurement_data = calculate_rop_and_procurement(results_df, procurement_df,
                                                                              inventory_df, BOM_CONFIG)
 
-        # 11. NEW: Category summary
+        # 11. Category summary
         category_summary = create_category_summary(results_df)
 
-        # 12. NEW: Procurement timeline
+        # 12. Procurement timeline
         procurement_timeline = create_procurement_timeline(results_df)
 
         # 13. Excel export
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f'HG_BOM_Analysis_Enhanced_{timestamp}.xlsx'
+        filename = f'HG_BOM_Analysis_{timestamp}.xlsx'
 
         excel_buffer = BytesIO()
 
         with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
 
-            # 1. Executive Summary
             exec_summary_df = create_executive_summary(results_df, forecast_df, skipped_skus, category_summary)
-            exec_summary_df.to_excel(writer, sheet_name='Executive_Summary', index=False)
+            exec_summary_df.to_excel(writer, sheet_name='📊 Executive Summary', index=False)
 
-            # 2. Main MRP Requirements
-            results_df.to_excel(writer, sheet_name='MRP_Requirements', index=False)
+            results_df.to_excel(writer, sheet_name='📦 MRP Requirements', index=False)
 
-            # 3. NEW: Category Summary
-            category_summary.to_excel(writer, sheet_name='Category_Summary', index=False)
+            if len(category_summary) > 0:
+                category_summary.to_excel(writer, sheet_name='📊 Category Summary', index=False)
 
-            # 4. NEW: Procurement Timeline
             if len(procurement_timeline) > 0:
-                procurement_timeline.to_excel(writer, sheet_name='Procurement_Timeline', index=False)
+                procurement_timeline.to_excel(writer, sheet_name='📅 Procurement Timeline', index=False)
 
-            # 5. Urgent Reorders
             urgent = results_df[results_df['Order_Status'] == '🔴 Urgent Reorder'].copy()
             if len(urgent) > 0:
-                urgent.to_excel(writer, sheet_name='Urgent_Reorders', index=False)
+                urgent.to_excel(writer, sheet_name='🚨 Urgent Reorders', index=False)
 
-            # 6. Reorder Soon
             reorder_soon = results_df[results_df['Order_Status'] == '🟡 Reorder Soon'].copy()
             if len(reorder_soon) > 0:
-                reorder_soon.to_excel(writer, sheet_name='Reorder_Soon', index=False)
+                reorder_soon.to_excel(writer, sheet_name='🟡 Reorder Soon', index=False)
 
-            # 7. Forecast data
-            forecast_df.to_excel(writer, sheet_name='Forecast', index=False)
+            forecast_df.to_excel(writer, sheet_name='📈 Forecasted Demand', index=False)
+            procurement_df.to_excel(writer, sheet_name='⚙️ Procurement Parameters', index=False)
+            inventory_df.to_excel(writer, sheet_name='📋 Current Inventory', index=False)
 
-            # 8. Procurement Parameters
-            procurement_df.to_excel(writer, sheet_name='Procurement_Parameters', index=False)
-
-            # 9. Current Inventory
-            inventory_df.to_excel(writer, sheet_name='Current_Inventory', index=False)
-
-            # 10. Skipped SKUs
-            if skipped_skus:
+            if skipped_skus and len(skipped_skus) > 0:
                 skipped_df = pd.DataFrame(skipped_skus)
-                skipped_df.to_excel(writer, sheet_name='Skipped_SKUs', index=False)
+                skipped_df.to_excel(writer, sheet_name='⚠️ Skipped SKUs', index=False)
 
-            # 11. Missing Data
             if missing_procurement_data:
                 missing_df = pd.DataFrame({'Missing_Data': missing_procurement_data})
-                missing_df.to_excel(writer, sheet_name='Missing_Procurement_Data', index=False)
+                missing_df[['Component_ID', 'Reason']] = missing_df['Missing_Data'].str.split(':', expand=True, n=1)
+                missing_df['Description'] = missing_df['Component_ID'].map(
+                    results_df.set_index('Component_ID')['Description'].to_dict()
+                ).fillna('')
+                missing_df = missing_df[['Component_ID', 'Description', 'Reason']]
+                missing_df.to_excel(writer, sheet_name='❌ Missing Data', index=False)
 
-            # Apply formatting
             format_excel_output(writer, results_df, forecast_df, procurement_df, inventory_df,
                                skipped_skus, missing_procurement_data)
 
         excel_buffer.seek(0)
 
-        # Summary output
-        print(f"\n" + "="*100)
-        print("✅ ENHANCED BOM ANALYSIS COMPLETE".center(100))
-        print("="*100)
-        print(f"\n📊 Results Summary:")
-        print(f"   Components analyzed: {len(results_df)}")
-        print(f"   Categories: {results_df['Component_Type'].nunique()}")
-        print(f"   ABC Classes: A={len(results_df[results_df['ABC_Class']=='A'])}, B={len(results_df[results_df['ABC_Class']=='B'])}, C={len(results_df[results_df['ABC_Class']=='C'])}")
-        print(f"   🔴 Urgent reorders: {len(urgent)}")
-        print(f"   🟡 Reorder soon: {len(reorder_soon)}")
-        print(f"   Total procurement cost: ${results_df['Procurement_Cost'].sum():,.2f}")
-        print(f"\n📁 Sheets included:")
-        print(f"   ✅ Executive_Summary (Enhanced KPIs)")
-        print(f"   ✅ MRP_Requirements (with Component Type, ABC, Days of Stock)")
-        print(f"   ✅ Category_Summary (NEW)")
-        print(f"   ✅ Procurement_Timeline (NEW)")
-        print(f"   ✅ Urgent_Reorders")
-        print(f"   ✅ Reorder_Soon (NEW)")
-        print(f"   ✅ + Standard sheets")
+        print(f"\n✅ BOM ANALYSIS COMPLETE!")
+        print(f"   Components: {len(results_df)}")
+        print(f"   🔴 Urgent: {len(urgent)}, 🟡 Soon: {len(reorder_soon)}")
+        print(f"   Total Cost: ${results_df['Procurement_Cost'].sum():,.2f}")
 
         return excel_buffer, filename
 
     except Exception as e:
-        print(f"\n❌ ERROR: {str(e)}")
+        print(f"\n❌ BOM ERROR: {str(e)}")
         import traceback
         traceback.print_exc()
         return None, None
-    
-# NEW: BOM-specific Google Sheets Upload Function
-# PLACEMENT: After run_forecast_bom_analysis function, before upload_excel_to_google_sheet
 
 def upload_bom_excel_to_google_sheet(excel_buffer, sheet_id=None):
     """
@@ -8792,7 +8821,7 @@ with tab3:
             )
         
         with col2:
-            bom_sheets_url = "https://docs.google.com/spreadsheets/d/1_wXJDNZeZ7Y31S_i3UUDQ89vCbJC-xotm3wADBSf5eY"
+            bom_sheets_url = "https://docs.google.com/spreadsheets/d/1izbZowu4FEiwiVwKWIiRz066aWWOII5u"
             st.markdown(f'<a href="{bom_sheets_url}" target="_blank" class="neural-btn">☁️ BOM SHEETS</a>', unsafe_allow_html=True)
         
         with col3:
@@ -8816,8 +8845,8 @@ st.markdown("""
 # ==============================================================================
 st.markdown("""
     <div class="footer">
-        <p class="footer-brand">HERBAL GOODNESS © 2025 | POWERED BY SCMplify CONSULTANCY | VERSION 5.1</p>
-        <p class="footer-text">Revolutionizing inventory management through intelligent forecasting</p>
+        <p class="footer-brand">HERBAL GOODNESS © 2025 | CREATED BY TEAM <a href="https://www.linkedin.com/company/scmplify/" target="_blank" style="color: #60a5fa; text-decoration: none; font-weight: 600;">SCMplify</a> | VERSION 5.1</p>
+        <p class="footer-text">Revolutionizing inventory management through intelligent systems</p>
     </div>
 """, unsafe_allow_html=True)
 

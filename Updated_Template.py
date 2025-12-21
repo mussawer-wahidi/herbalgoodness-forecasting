@@ -3606,6 +3606,7 @@ def run_forecast_bom_analysis(gc_client=None):
             'Total Cost': 'total_cost',
             'Critical Path': 'critical_path',
             'Supplier': 'supplier',
+            'Supplier - Primary vendor': 'supplier',
             'Vendor': 'supplier',
             'Supplier Name': 'supplier',
         }

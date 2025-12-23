@@ -4527,7 +4527,6 @@ def run_forecast_bom_analysis(gc_client=None):
 
             elif sheet_name == '📈 Forecasted Demand':
                 apply_column_formatting(worksheet, forecast_df)
-                worksheet.freeze_panes = 'A2'
 
             elif sheet_name == '📊 Executive Summary':
                 worksheet.column_dimensions['A'].width = 45
@@ -4587,8 +4586,6 @@ def run_forecast_bom_analysis(gc_client=None):
                     elif metric_text.startswith('🟢'):
                         for col in range(1, 4):
                             worksheet.cell(row=row_idx, column=col).fill = ok_fill
-
-                worksheet.freeze_panes = 'A2'
             
             # ============================================================
             # UNIVERSAL FREEZE PANES - INSIDE THE LOOP, AT THE END

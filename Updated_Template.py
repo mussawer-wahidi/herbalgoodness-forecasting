@@ -3663,7 +3663,7 @@ def run_forecast_bom_analysis(gc_client=None):
 
     def fetch_procurement_parameters(client, sheet_url: str, worksheet_name: str,
                                     component_col: str, lead_time_col: str, 
-                                    moq_col: str, eoq_col: str) -> pd.DataFrame:
+                                    moq_col: str, eoq_col: str, supplier_col: str = 'L') -> pd.DataFrame:
         print("\n📦 Fetching procurement parameters...")
         try:
             sheet = client.open_by_url(sheet_url)
@@ -3692,7 +3692,14 @@ def run_forecast_bom_analysis(gc_client=None):
         if not component_column:
             component_column = df.columns[0]
 
-        column_mapping = {
+        supplier_col_index = column_letter_to_index(supplier_col) - 1  # Convert to 0-based index
+        
+        # Map supplier column by position if header row exists
+        if len(header) > supplier_col_index:
+            supplier_header = header[supplier_col_index]
+            column_mapping[supplier_header] = 'supplier'
+        
+        column_mapping.update({
             component_column: 'component_item_code',
             "Lead Time - Component procurement time (days)": "lead_time_days",
             "Lead Time Days": "lead_time_days",
@@ -3703,8 +3710,12 @@ def run_forecast_bom_analysis(gc_client=None):
             "MOQ": "moq",
             "Economic Order Quantity - Optimal order size": "eoq",
             "Economic Order Quantity": "eoq",
-            "EOQ": "eoq"
-        }
+            "EOQ": "eoq",
+            "Supplier": "supplier",
+            "Supplier Name": "supplier",
+            "Supplier - Primary vendor": "supplier",
+            "Vendor": "supplier"
+        })
         df = df.rename(columns=column_mapping)
 
         for col in ['lead_time_days', 'moq', 'eoq']:
@@ -3712,11 +3723,21 @@ def run_forecast_bom_analysis(gc_client=None):
                 df[col] = 0
             else:
                 df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
+        
+        # Handle supplier column
+        if 'supplier' not in df.columns:
+            # Try to get by column position
+            if len(df.columns) > supplier_col_index:
+                df['supplier'] = df.iloc[:, supplier_col_index].fillna('Unknown Supplier')
+            else:
+                df['supplier'] = 'Unknown Supplier'
+        else:
+            df['supplier'] = df['supplier'].fillna('Unknown Supplier').replace('', 'Unknown Supplier')
 
         df['component_item_code'] = df['component_item_code'].astype(str).str.strip().str.upper()
         df = df[df['component_item_code'].notna() & (df['component_item_code'] != "") & (df['component_item_code'].str.lower() != "nan")]
-        df = df[['component_item_code', 'lead_time_days', 'moq', 'eoq']]
-
+        df = df[['component_item_code', 'lead_time_days', 'moq', 'eoq', 'supplier']]
+        
         print(f"✅ Procurement data: {len(df)} entries")
         return df
 
@@ -4047,17 +4068,29 @@ def run_forecast_bom_analysis(gc_client=None):
         inventory_df['component_item_code'] = inventory_df['component_item_code'].str.upper()
 
         df = (df
-              .merge(procurement_df[['component_item_code', 'lead_time_days', 'moq', 'eoq']],
-                     left_on='Component_ID', right_on='component_item_code', how='left')
+              .merge(procurement_df[['component_item_code', 'lead_time_days', 'moq', 'eoq', 'supplier']],
+                     left_on='Component_ID', right_on='component_item_code', how='left', suffixes=('', '_proc'))
               .merge(inventory_df[['component_item_code', 'current_inventory']],
                      left_on='Component_ID', right_on='component_item_code', how='left',
                      suffixes=('', '_inv'))
              )
 
-        df['lead_time_days'] = df['lead_time_days'].fillna(0)
-        df['moq'] = df['moq'].fillna(0)
-        df['eoq'] = df['eoq'].fillna(0)
+        df['lead_time_days'] = df['lead_time_days'].fillna(0).round().astype(int)
+        df['moq'] = df['moq'].fillna(0).round().astype(int)
+        df['eoq'] = df['eoq'].fillna(0).round().astype(int)
         df['current_inventory'] = df['current_inventory'].fillna(0)
+        
+        # Update Supplier from procurement data if available
+        if 'supplier_proc' in df.columns:
+            # Use procurement supplier if available, otherwise keep BOM supplier
+            df['Supplier'] = df['supplier_proc'].combine_first(df['Supplier'])
+            df = df.drop(columns=['supplier_proc'], errors='ignore')
+        elif 'supplier' in df.columns and 'Supplier' in df.columns:
+            df['Supplier'] = df['supplier'].combine_first(df['Supplier'])
+            df = df.drop(columns=['supplier'], errors='ignore')
+        
+        # Clean up supplier column
+        df['Supplier'] = df['Supplier'].fillna('Unknown Supplier').replace('', 'Unknown Supplier')
 
         missing_data = []
         horizon_days = config['FORECAST_HORIZON_DAYS']
@@ -4088,7 +4121,7 @@ def run_forecast_bom_analysis(gc_client=None):
                 missing_data.append(f"{component_id}: Missing MOQ and EOQ")
 
             daily_demand = net_req / horizon_days if horizon_days > 0 else 0
-            df.at[idx, 'Daily_Demand'] = round(daily_demand, 4)
+            df.at[idx, 'Daily_Demand'] = round(daily_demand)
 
             if abc_class == 'A':
                 safety_stock_pct = config['SAFETY_STOCK_A']
@@ -4197,6 +4230,13 @@ def run_forecast_bom_analysis(gc_client=None):
             summary['Cost_Percentage'] = 0
         
         summary = summary.sort_values('Total_Procurement_Cost', ascending=False).reset_index()
+        
+        # Apply formatting - round to whole numbers
+        summary['Total_Net_Requirement'] = summary['Total_Net_Requirement'].round().astype(int)
+        summary['Avg_Days_of_Stock'] = summary['Avg_Days_of_Stock'].round().astype(int)
+        summary['Total_Procurement_Cost'] = summary['Total_Procurement_Cost'].round().astype(int)
+        summary['Total_Value'] = summary['Total_Value'].round().astype(int)
+        
         return summary
 
     def create_procurement_timeline(results_df: pd.DataFrame) -> pd.DataFrame:
@@ -4227,6 +4267,10 @@ def run_forecast_bom_analysis(gc_client=None):
             'lead_time_days', 'Days_of_Stock',
             'Order_By_Date', 'Expected_Arrival'
         ]].sort_values(['Order_By_Date', 'Order_Priority_Score'], ascending=[True, False])
+        
+        # Round to whole numbers
+        timeline['Recommended_Order_Qty'] = timeline['Recommended_Order_Qty'].round().astype(int)
+        timeline['Procurement_Cost'] = timeline['Procurement_Cost'].round().astype(int)
         
         timeline['Order_By_Date'] = timeline['Order_By_Date'].astype(str)
         timeline['Expected_Arrival'] = timeline['Expected_Arrival'].astype(str)
@@ -4368,7 +4412,8 @@ def run_forecast_bom_analysis(gc_client=None):
         quantity_columns = ['Gross_Requirement', 'Net_Requirement', 'Calculated_ROP', 'ROP',
                            'Recommended_Order_Qty', 'Procurement_Needed', 'moq', 'eoq', 'MOQ', 'EOQ',
                            'Safety_Stock', 'current_inventory', 'Current_Inventory',
-                           'Forecast_Demand', 'Total_Net_Requirement', 'Component_Count', 'Urgent_Count']
+                           'Forecast_Demand', 'Total_Net_Requirement', 'Component_Count', 'Urgent_Count',
+                           'Daily_Demand']
 
         def smart_number_format(value, is_currency=False):
             try:
@@ -4387,7 +4432,8 @@ def run_forecast_bom_analysis(gc_client=None):
                 col_letter = get_column_letter(col_idx)
                 is_currency = any(curr in col_name for curr in currency_columns)
                 is_quantity = any(qty in col_name for qty in quantity_columns)
-                is_percent = 'Percentage' in col_name or 'Pct' in col_name or col_name == 'Wastage%'
+                is_percent = 'Percentage' in col_name or 'Pct' in col_name or col_name == 'Cost_Percentage'
+                is_wastage = col_name == 'Wastage%'
                 
                 for row in range(2, worksheet.max_row + 1):
                     cell = worksheet[f'{col_letter}{row}']
@@ -4396,6 +4442,9 @@ def run_forecast_bom_analysis(gc_client=None):
                         if cell_value is not None and cell_value != '':
                             if is_currency:
                                 cell.number_format = smart_number_format(cell_value, is_currency=True)
+                            elif is_wastage:
+                                # Wastage is stored as 10 meaning 10%, so use custom format
+                                cell.number_format = '0.0"%"'
                             elif is_percent:
                                 cell.number_format = PERCENT_FORMAT
                             elif is_quantity:
@@ -4528,6 +4577,10 @@ def run_forecast_bom_analysis(gc_client=None):
                             worksheet.cell(row=row_idx, column=col).fill = ok_fill
 
                 worksheet.freeze_panes = 'A2'
+            if worksheet.max_row > 1:
+                # Only freeze if not already frozen by specific sheet handling
+                if worksheet.freeze_panes is None:
+                    worksheet.freeze_panes = 'A2'
 
         print("✅ Applied professional Excel formatting")
 
@@ -4624,9 +4677,11 @@ def run_forecast_bom_analysis(gc_client=None):
 
             if len(category_summary) > 0:
                 category_summary.to_excel(writer, sheet_name='📊 Category Summary', index=False)
+                worksheet.freeze_panes = 'A2'
 
             if len(procurement_timeline) > 0:
                 procurement_timeline.to_excel(writer, sheet_name='📅 Procurement Timeline', index=False)
+                worksheet.freeze_panes = 'A2'
 
             urgent = results_df[results_df['Order_Status'] == '🔴 Urgent Reorder'].copy()
             if len(urgent) > 0:

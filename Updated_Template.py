@@ -4713,11 +4713,9 @@ def run_forecast_bom_analysis(gc_client=None):
 
             if len(category_summary) > 0:
                 category_summary.to_excel(writer, sheet_name='📊 Category Summary', index=False)
-                worksheet.freeze_panes = 'A2'
 
             if len(procurement_timeline) > 0:
                 procurement_timeline.to_excel(writer, sheet_name='📅 Procurement Timeline', index=False)
-                worksheet.freeze_panes = 'A2'
 
             urgent = results_df[results_df['Order_Status'] == '🔴 Urgent Reorder'].copy()
             if len(urgent) > 0:

@@ -4589,9 +4589,14 @@ def run_forecast_bom_analysis(gc_client=None):
                             worksheet.cell(row=row_idx, column=col).fill = ok_fill
 
                 worksheet.freeze_panes = 'A2'
-            if worksheet.max_row > 1:
-                # Only freeze if not already frozen by specific sheet handling
-                if worksheet.freeze_panes is None:
+            
+            # ============================================================
+            # UNIVERSAL FREEZE PANES - INSIDE THE LOOP, AT THE END
+            # This catches any sheets not explicitly handled above
+            # ============================================================
+            else:
+                # For any other sheets not explicitly handled, freeze the header row
+                if worksheet.freeze_panes is None and worksheet.max_row > 1:
                     worksheet.freeze_panes = 'A2'
 
         print("✅ Applied professional Excel formatting")

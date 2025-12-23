@@ -3692,14 +3692,16 @@ def run_forecast_bom_analysis(gc_client=None):
         if not component_column:
             component_column = df.columns[0]
 
-        supplier_col_index = column_letter_to_index(supplier_col) - 1  # Convert to 0-based index
-        
-        # Map supplier column by position if header row exists
-        if len(header) > supplier_col_index:
-            supplier_header = header[supplier_col_index]
-            column_mapping[supplier_header] = 'supplier'
-        
-        column_mapping.update({
+# FIX: Define column_mapping first, then add supplier. Replace the entire column mapping section with:
+
+        component_col_names = ['Unique Identifier', 'Component Item Code', 'Component_Item_Code',
+                              'Item Code', 'Component Code', 'SKU', 'Item_Code']
+        component_column = next((c for c in component_col_names if c in df.columns), None)
+        if not component_column:
+            component_column = df.columns[0]
+
+        # Define column_mapping FIRST
+        column_mapping = {
             component_column: 'component_item_code',
             "Lead Time - Component procurement time (days)": "lead_time_days",
             "Lead Time Days": "lead_time_days",
@@ -3715,7 +3717,17 @@ def run_forecast_bom_analysis(gc_client=None):
             "Supplier Name": "supplier",
             "Supplier - Primary vendor": "supplier",
             "Vendor": "supplier"
-        })
+        }
+        
+        # Get supplier from column L (index 11, 0-based)
+        supplier_col_index = column_letter_to_index(supplier_col) - 1  # Convert to 0-based index
+        
+        # Map supplier column by position if header row exists
+        if len(header) > supplier_col_index:
+            supplier_header = header[supplier_col_index]
+            if supplier_header and supplier_header.strip():
+                column_mapping[supplier_header] = 'supplier'
+        
         df = df.rename(columns=column_mapping)
 
         for col in ['lead_time_days', 'moq', 'eoq']:
@@ -3737,7 +3749,7 @@ def run_forecast_bom_analysis(gc_client=None):
         df['component_item_code'] = df['component_item_code'].astype(str).str.strip().str.upper()
         df = df[df['component_item_code'].notna() & (df['component_item_code'] != "") & (df['component_item_code'].str.lower() != "nan")]
         df = df[['component_item_code', 'lead_time_days', 'moq', 'eoq', 'supplier']]
-        
+
         print(f"✅ Procurement data: {len(df)} entries")
         return df
 

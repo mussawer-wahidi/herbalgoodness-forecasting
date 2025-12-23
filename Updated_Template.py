@@ -4467,12 +4467,14 @@ def run_forecast_bom_analysis(gc_client=None):
         for sheet_name in workbook.sheetnames:
             worksheet = workbook[sheet_name]
 
+            # Apply header formatting to all sheets
             for cell in worksheet[1]:
                 cell.font = header_font
                 cell.fill = header_fill
                 cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
                 cell.border = thin_border
 
+            # Auto-adjust column widths
             for column in worksheet.columns:
                 max_length = 0
                 column_letter = get_column_letter(column[0].column)
@@ -4486,6 +4488,7 @@ def run_forecast_bom_analysis(gc_client=None):
                 adjusted_width = min(max_length + 3, 50)
                 worksheet.column_dimensions[column_letter].width = max(adjusted_width, 10)
 
+            # Apply borders to all cells with data
             for row in worksheet.iter_rows(min_row=1, max_row=worksheet.max_row,
                                           min_col=1, max_col=worksheet.max_column):
                 for cell in row:
@@ -4493,6 +4496,7 @@ def run_forecast_bom_analysis(gc_client=None):
                         cell.border = thin_border
                         cell.alignment = Alignment(vertical='center')
 
+            # Sheet-specific formatting
             if sheet_name == '📦 MRP Requirements':
                 apply_column_formatting(worksheet, results_df)
                 if 'Order_Status' in results_df.columns:
@@ -4527,6 +4531,7 @@ def run_forecast_bom_analysis(gc_client=None):
 
             elif sheet_name == '📈 Forecasted Demand':
                 apply_column_formatting(worksheet, forecast_df)
+                worksheet.freeze_panes = 'A2'
 
             elif sheet_name == '📊 Executive Summary':
                 worksheet.column_dimensions['A'].width = 45
@@ -4586,15 +4591,32 @@ def run_forecast_bom_analysis(gc_client=None):
                     elif metric_text.startswith('🟢'):
                         for col in range(1, 4):
                             worksheet.cell(row=row_idx, column=col).fill = ok_fill
-            
-            # ============================================================
-            # UNIVERSAL FREEZE PANES - INSIDE THE LOOP, AT THE END
-            # This catches any sheets not explicitly handled above
-            # ============================================================
+
+                worksheet.freeze_panes = 'A2'
+
+            elif sheet_name == '📊 Category Summary':
+                apply_column_formatting(worksheet, None)  # Basic formatting
+                worksheet.freeze_panes = 'A2'
+
+            elif sheet_name == '📅 Procurement Timeline':
+                apply_column_formatting(worksheet, None)  # Basic formatting
+                worksheet.freeze_panes = 'A2'
+
+            elif sheet_name == '⚙️ Procurement Parameters':
+                worksheet.freeze_panes = 'A2'
+
+            elif sheet_name == '📋 Current Inventory':
+                worksheet.freeze_panes = 'A2'
+
+            elif sheet_name == '⚠️ Skipped SKUs':
+                worksheet.freeze_panes = 'A2'
+
+            elif sheet_name == '❌ Missing Data':
+                worksheet.freeze_panes = 'A2'
+
             else:
-                # For any other sheets not explicitly handled, freeze the header row
-                if worksheet.freeze_panes is None and worksheet.max_row > 1:
-                    worksheet.freeze_panes = 'A2'
+                # For any other sheets not explicitly handled above
+                worksheet.freeze_panes = 'A2'
 
         print("✅ Applied professional Excel formatting")
 

@@ -3580,7 +3580,7 @@ def run_forecast_bom_analysis(gc_client=None):
 
         df = pd.DataFrame(raw_vals[1:], columns=clean_hdr)
 
-        # Column mapping - COST COLUMNS REMOVED
+        # Column mapping
         column_mapping = {
             'Parent Item Code': 'parent_item_code',
             'Parent SKU': 'parent_sku',
@@ -3600,10 +3600,10 @@ def run_forecast_bom_analysis(gc_client=None):
             'Wastage': 'wastage_pct',
             'Scrap %': 'wastage_pct',
             'Net Requirement': 'net_requirement',
-            # REMOVED: 'Component Cost (All in Cost)': 'unit_cost',
-            # REMOVED: 'Unit Cost': 'unit_cost',
-            # REMOVED: 'Cost': 'unit_cost',
-            # REMOVED: 'Total Cost': 'total_cost',
+            'Component Cost (All in Cost)': 'unit_cost',
+            'Unit Cost': 'unit_cost',
+            'Cost': 'unit_cost',
+            'Total Cost': 'total_cost',
             'Critical Path': 'critical_path',
             'Supplier': 'supplier',
             'Supplier - Primary vendor': 'supplier',
@@ -3612,8 +3612,8 @@ def run_forecast_bom_analysis(gc_client=None):
         }
         df = df.rename(columns={k: v for k, v in column_mapping.items() if k in df.columns})
 
-        # Numeric clean-up - COST COLUMNS REMOVED
-        numeric_cols = ['quantity_required', 'wastage_pct', 'net_requirement']
+        # Numeric clean-up
+        numeric_cols = ['quantity_required', 'wastage_pct', 'net_requirement', 'unit_cost', 'total_cost']
         for col in numeric_cols:
             if col in df.columns:
                 df[col] = safe_numeric_convert(df[col])
@@ -3656,7 +3656,7 @@ def run_forecast_bom_analysis(gc_client=None):
         print(f"✅ Cleaned BOM data: {len(df)} valid entries")
         print(f"   Component Types: {df['component_type'].nunique()}")
         return df
-    
+
     # ==========================================================================
     # PROCUREMENT & INVENTORY FETCHING
     # ==========================================================================
@@ -3921,7 +3921,7 @@ def run_forecast_bom_analysis(gc_client=None):
                 
                 qty_req = safe_float(row['quantity_required'], 1.0)
                 wastage = safe_float(row['wastage_pct'], 0.0)
-                # REMOVED: cost = safe_float(row['unit_cost'], 0.0)
+                cost = safe_float(row['unit_cost'], 0.0)
                 
                 desc = row['component_description']
                 desc = str(desc.iloc[0]) if isinstance(desc, pd.Series) else str(desc)
@@ -3935,23 +3935,21 @@ def run_forecast_bom_analysis(gc_client=None):
                 supplier_val = row.get('supplier', 'Unknown Supplier')
                 supplier_val = str(supplier_val.iloc[0]) if isinstance(supplier_val, pd.Series) else str(supplier_val)
                 
-                # MODIFIED: Removed cost from tuple (now 8 elements instead of 9)
-                components.append((component_code, qty_req, desc, level, wastage, uom_val, comp_type, supplier_val))
+                components.append((component_code, qty_req, desc, level, wastage, cost, uom_val, comp_type, supplier_val))
             bom_structure[parent_code] = components
         print(f"✅ BOM structure for {len(bom_structure)} parent items")
         return bom_structure
 
     def explode_bom(parent_id: str, parent_qty: float, bom_structure: Dict, requirements: Dict,
-                parent_chain: Set[str], root_sku: str) -> None:
+                   parent_chain: Set[str], root_sku: str) -> None:
         if parent_id not in bom_structure:
             return
         for item in bom_structure[parent_id]:
-            # MODIFIED: Removed unit_cost from unpacking (now 8 elements instead of 9)
-            child_id, child_qty_per_parent, description, level, wastage_pct, uom, comp_type, supplier = item
+            child_id, child_qty_per_parent, description, level, wastage_pct, unit_cost, uom, comp_type, supplier = item
             
             child_qty_per_parent = safe_float(child_qty_per_parent, 1.0)
             wastage_pct = safe_float(wastage_pct, 0.0)
-            # REMOVED: unit_cost = safe_float(unit_cost, 0.0)
+            unit_cost = safe_float(unit_cost, 0.0)
             level = int(safe_float(level, 2))
             
             if child_id in parent_chain:
@@ -3963,17 +3961,10 @@ def run_forecast_bom_analysis(gc_client=None):
 
             if child_id not in requirements:
                 requirements[child_id] = {
-                    'gross_qty': 0.0, 
-                    'net_qty': 0.0, 
-                    'description': str(description), 
-                    'level': level, 
-                    'parent_skus': set(), 
-                    'wastage_pct': wastage_pct, 
-                    # REMOVED: 'unit_cost': unit_cost,
-                    'lead_time': 0, 
-                    'uom': str(uom),
-                    'component_type': str(comp_type), 
-                    'supplier': str(supplier)
+                    'gross_qty': 0.0, 'net_qty': 0.0, 'description': str(description), 
+                    'level': level, 'parent_skus': set(), 'wastage_pct': wastage_pct, 
+                    'unit_cost': unit_cost, 'lead_time': 0, 'uom': str(uom),
+                    'component_type': str(comp_type), 'supplier': str(supplier)
                 }
             req = requirements[child_id]
             req['gross_qty'] += gross_qty
@@ -3997,10 +3988,10 @@ def run_forecast_bom_analysis(gc_client=None):
         for comp_id, data in requirements.items():
             gross_req = safe_float(data['gross_qty'])
             net_req = safe_float(data['net_qty'])
-            # REMOVED: unit_cost = safe_float(data['unit_cost'])
+            unit_cost = safe_float(data['unit_cost'])
             wastage_pct = safe_float(data['wastage_pct'])
             
-            # REMOVED: total_cost = net_req * unit_cost
+            total_cost = net_req * unit_cost
             current_inv = safe_float(inventory.get(comp_id, 0)) if inventory else 0
             procurement_needed = max(0, net_req - current_inv)
             parent_skus_str = ', '.join(sorted(data['parent_skus']))
@@ -4033,8 +4024,8 @@ def run_forecast_bom_analysis(gc_client=None):
                 'Net_Requirement': round(net_req, 2),
                 'Current_Inventory': round(current_inv, 2),
                 'Procurement_Needed': round(procurement_needed, 2),
-                # REMOVED: 'Unit_Cost': round(unit_cost, 2),
-                # REMOVED: 'Total_Cost': round(total_cost, 2),
+                'Unit_Cost': round(unit_cost, 2),
+                'Total_Cost': round(total_cost, 2),
                 'Lead_Time': int(safe_float(data['lead_time'], 0)),
                 'Parent_SKUs': parent_skus_str
             })
@@ -4048,19 +4039,15 @@ def run_forecast_bom_analysis(gc_client=None):
     # ==========================================================================
 
     def calculate_abc_classification(df: pd.DataFrame, config: Dict) -> pd.DataFrame:
-        """
-        ABC Classification based on Net Requirement quantity (not cost/value).
-        """
-        print("\n📊 Calculating ABC Classification (Quantity-Based)...")
+        print("\n📊 Calculating ABC Classification...")
         df = df.copy()
+        df['Total_Value'] = df['Net_Requirement'] * df['Unit_Cost']
+        df = df.sort_values('Total_Value', ascending=False)
         
-        # Sort by Net_Requirement (quantity) instead of value
-        df = df.sort_values('Net_Requirement', ascending=False)
-        
-        total_qty = df['Net_Requirement'].sum()
-        if total_qty > 0:
-            df['Cumulative_Qty'] = df['Net_Requirement'].cumsum()
-            df['Cumulative_Pct'] = df['Cumulative_Qty'] / total_qty
+        total_value = df['Total_Value'].sum()
+        if total_value > 0:
+            df['Cumulative_Value'] = df['Total_Value'].cumsum()
+            df['Cumulative_Pct'] = df['Cumulative_Value'] / total_value
             conditions = [
                 df['Cumulative_Pct'] <= config['ABC_A_THRESHOLD'],
                 df['Cumulative_Pct'] <= config['ABC_B_THRESHOLD'],
@@ -4070,19 +4057,18 @@ def run_forecast_bom_analysis(gc_client=None):
         else:
             df['ABC_Class'] = 'C'
         
-        # Clean up temporary columns
-        df = df.drop(columns=['Cumulative_Qty', 'Cumulative_Pct'], errors='ignore')
+        df = df.drop(columns=['Cumulative_Value', 'Cumulative_Pct'], errors='ignore')
         
         class_counts = df['ABC_Class'].value_counts()
-        print(f"   A (High Qty): {class_counts.get('A', 0)}, B (Medium Qty): {class_counts.get('B', 0)}, C (Low Qty): {class_counts.get('C', 0)}")
+        print(f"   A: {class_counts.get('A', 0)}, B: {class_counts.get('B', 0)}, C: {class_counts.get('C', 0)}")
         return df
-    
+
     # ==========================================================================
     # PROCUREMENT CALCULATIONS
     # ==========================================================================
 
     def calculate_rop_and_procurement(requirements_df: pd.DataFrame, procurement_df: pd.DataFrame,
-                                    inventory_df: pd.DataFrame, config: Dict) -> Tuple[pd.DataFrame, List[str]]:
+                                     inventory_df: pd.DataFrame, config: Dict) -> Tuple[pd.DataFrame, List[str]]:
         print("\n🔄 PROCUREMENT CALCULATIONS...")
 
         df = requirements_df.copy()
@@ -4094,12 +4080,12 @@ def run_forecast_bom_analysis(gc_client=None):
         inventory_df['component_item_code'] = inventory_df['component_item_code'].str.upper()
 
         df = (df
-            .merge(procurement_df[['component_item_code', 'lead_time_days', 'moq', 'eoq', 'supplier']],
-                    left_on='Component_ID', right_on='component_item_code', how='left', suffixes=('', '_proc'))
-            .merge(inventory_df[['component_item_code', 'current_inventory']],
-                    left_on='Component_ID', right_on='component_item_code', how='left',
-                    suffixes=('', '_inv'))
-            )
+              .merge(procurement_df[['component_item_code', 'lead_time_days', 'moq', 'eoq', 'supplier']],
+                     left_on='Component_ID', right_on='component_item_code', how='left', suffixes=('', '_proc'))
+              .merge(inventory_df[['component_item_code', 'current_inventory']],
+                     left_on='Component_ID', right_on='component_item_code', how='left',
+                     suffixes=('', '_inv'))
+             )
 
         df['lead_time_days'] = df['lead_time_days'].fillna(0).round().astype(int)
         df['moq'] = df['moq'].fillna(0).round().astype(int)
@@ -4108,6 +4094,7 @@ def run_forecast_bom_analysis(gc_client=None):
         
         # Update Supplier from procurement data if available
         if 'supplier_proc' in df.columns:
+            # Use procurement supplier if available, otherwise keep BOM supplier
             df['Supplier'] = df['supplier_proc'].combine_first(df['Supplier'])
             df = df.drop(columns=['supplier_proc'], errors='ignore')
         elif 'supplier' in df.columns and 'Supplier' in df.columns:
@@ -4124,7 +4111,7 @@ def run_forecast_bom_analysis(gc_client=None):
         df['Safety_Stock'] = 0.0
         df['Calculated_ROP'] = 0.0
         df['Recommended_Order_Qty'] = 0.0
-        # REMOVED: df['Procurement_Cost'] = 0.0
+        df['Procurement_Cost'] = 0.0
         df['Order_Status'] = ''
         df['Days_of_Stock'] = 0.0
         df['Stock_Coverage_Ratio'] = 0.0
@@ -4137,7 +4124,7 @@ def run_forecast_bom_analysis(gc_client=None):
             moq = row['moq']
             eoq = row['eoq']
             current_inv = row['current_inventory']
-            # REMOVED: unit_cost = row['Unit_Cost']
+            unit_cost = row['Unit_Cost']
             abc_class = row.get('ABC_Class', 'B')
 
             if lead_time == 0 or pd.isna(lead_time):
@@ -4173,8 +4160,8 @@ def run_forecast_bom_analysis(gc_client=None):
                 roq = ((roq // moq) + (1 if roq % moq > 0 else 0)) * moq
             df.at[idx, 'Recommended_Order_Qty'] = round(roq, 2)
 
-            # REMOVED: procurement_cost = roq * unit_cost if unit_cost > 0 else 0
-            # REMOVED: df.at[idx, 'Procurement_Cost'] = round(procurement_cost, 2)
+            procurement_cost = roq * unit_cost if unit_cost > 0 else 0
+            df.at[idx, 'Procurement_Cost'] = round(procurement_cost, 2)
 
             if current_inv < calculated_rop:
                 df.at[idx, 'Order_Status'] = '🔴 Urgent Reorder'
@@ -4200,15 +4187,13 @@ def run_forecast_bom_analysis(gc_client=None):
 
         df = df.drop(columns=[c for c in df.columns if c.startswith('component_item_code')], errors='ignore')
 
-        # MODIFIED: Removed cost columns from column_order
         column_order = [
             'Component_ID', 'Description', 'Component_Type', 'Supplier', 'ABC_Class',
             'UoM', 'Level', 'Gross_Requirement', 'Wastage%', 'Net_Requirement',
             'lead_time_days', 'moq', 'eoq',
             'Daily_Demand', 'Safety_Stock', 'Calculated_ROP',
             'current_inventory', 'Days_of_Stock', 'Stock_Coverage_Ratio',
-            'Recommended_Order_Qty',
-            # REMOVED: 'Unit_Cost', 'Procurement_Cost', 'Total_Value',
+            'Recommended_Order_Qty', 'Unit_Cost', 'Procurement_Cost', 'Total_Value',
             'Order_Status', 'Order_Priority_Score', 'Parent_SKUs'
         ]
         final_columns = [col for col in column_order if col in df.columns]
@@ -4233,47 +4218,36 @@ def run_forecast_bom_analysis(gc_client=None):
         if len(results_df) == 0:
             return pd.DataFrame()
         
-        # MODIFIED: Removed cost-related aggregations
         summary = results_df.groupby('Component_Type').agg({
             'Component_ID': 'count',
             'Net_Requirement': 'sum',
-            # REMOVED: 'Procurement_Cost': 'sum',
-            # REMOVED: 'Total_Value': 'sum',
+            'Procurement_Cost': 'sum',
+            'Total_Value': 'sum',
             'Days_of_Stock': 'mean',
         }).rename(columns={
             'Component_ID': 'Component_Count',
             'Net_Requirement': 'Total_Net_Requirement',
-            # REMOVED: 'Procurement_Cost': 'Total_Procurement_Cost',
-            # REMOVED: 'Total_Value': 'Total_Value',
+            'Procurement_Cost': 'Total_Procurement_Cost',
+            'Total_Value': 'Total_Value',
             'Days_of_Stock': 'Avg_Days_of_Stock'
         })
         
-        # Count urgent items by category
         urgent_by_cat = results_df[results_df['Order_Status'] == '🔴 Urgent Reorder'].groupby('Component_Type').size()
         summary['Urgent_Count'] = urgent_by_cat.reindex(summary.index).fillna(0).astype(int)
         
-        # REMOVED: Cost percentage calculation
-        # total_cost = summary['Total_Procurement_Cost'].sum()
-        # if total_cost > 0:
-        #     summary['Cost_Percentage'] = (summary['Total_Procurement_Cost'] / total_cost * 100).round(1)
-        # else:
-        #     summary['Cost_Percentage'] = 0
-        
-        # Calculate quantity percentage instead
-        total_qty = summary['Total_Net_Requirement'].sum()
-        if total_qty > 0:
-            summary['Qty_Percentage'] = (summary['Total_Net_Requirement'] / total_qty * 100).round(1)
+        total_cost = summary['Total_Procurement_Cost'].sum()
+        if total_cost > 0:
+            summary['Cost_Percentage'] = (summary['Total_Procurement_Cost'] / total_cost * 100).round(1)
         else:
-            summary['Qty_Percentage'] = 0
+            summary['Cost_Percentage'] = 0
         
-        # Sort by Total_Net_Requirement instead of cost
-        summary = summary.sort_values('Total_Net_Requirement', ascending=False).reset_index()
+        summary = summary.sort_values('Total_Procurement_Cost', ascending=False).reset_index()
         
         # Apply formatting - round to whole numbers
         summary['Total_Net_Requirement'] = summary['Total_Net_Requirement'].round().astype(int)
         summary['Avg_Days_of_Stock'] = summary['Avg_Days_of_Stock'].round().astype(int)
-        # REMOVED: summary['Total_Procurement_Cost'] = summary['Total_Procurement_Cost'].round().astype(int)
-        # REMOVED: summary['Total_Value'] = summary['Total_Value'].round().astype(int)
+        summary['Total_Procurement_Cost'] = summary['Total_Procurement_Cost'].round().astype(int)
+        summary['Total_Value'] = summary['Total_Value'].round().astype(int)
         
         return summary
 
@@ -4298,19 +4272,17 @@ def run_forecast_bom_analysis(gc_client=None):
             lambda r: r['Order_By_Date'] + timedelta(days=int(r['lead_time_days'])), axis=1
         )
         
-        # MODIFIED: Removed 'Procurement_Cost' from column selection
         timeline = needs_order[[
             'Component_ID', 'Description', 'Component_Type', 'Supplier',
             'Order_Status', 'Order_Priority_Score',
-            'Recommended_Order_Qty',
-            # REMOVED: 'Procurement_Cost',
+            'Recommended_Order_Qty', 'Procurement_Cost',
             'lead_time_days', 'Days_of_Stock',
             'Order_By_Date', 'Expected_Arrival'
         ]].sort_values(['Order_By_Date', 'Order_Priority_Score'], ascending=[True, False])
         
         # Round to whole numbers
         timeline['Recommended_Order_Qty'] = timeline['Recommended_Order_Qty'].round().astype(int)
-        # REMOVED: timeline['Procurement_Cost'] = timeline['Procurement_Cost'].round().astype(int)
+        timeline['Procurement_Cost'] = timeline['Procurement_Cost'].round().astype(int)
         
         timeline['Order_By_Date'] = timeline['Order_By_Date'].astype(str)
         timeline['Expected_Arrival'] = timeline['Expected_Arrival'].astype(str)
@@ -4327,14 +4299,14 @@ def run_forecast_bom_analysis(gc_client=None):
         
         total_components = len(results_df)
         total_forecast = forecast_df['Forecast_Demand'].sum()
-        # REMOVED: total_proc_cost = results_df['Procurement_Cost'].sum()
-        # REMOVED: total_value = results_df['Total_Value'].sum()
+        total_proc_cost = results_df['Procurement_Cost'].sum()
+        total_value = results_df['Total_Value'].sum()
 
         urgent_cnt = len(results_df[results_df['Order_Status'] == '🔴 Urgent Reorder'])
         soon_cnt = len(results_df[results_df['Order_Status'] == '🟡 Reorder Soon'])
         ok_cnt = len(results_df[results_df['Order_Status'] == '🟢 OK'])
 
-        # REMOVED: urgent_cost = results_df[results_df['Order_Status'] == '🔴 Urgent Reorder']['Procurement_Cost'].sum()
+        urgent_cost = results_df[results_df['Order_Status'] == '🔴 Urgent Reorder']['Procurement_Cost'].sum()
         avg_lead = results_df['lead_time_days'].mean()
         max_lead = results_df['lead_time_days'].max()
         
@@ -4346,14 +4318,11 @@ def run_forecast_bom_analysis(gc_client=None):
         abc_c_cnt = len(results_df[results_df['ABC_Class'] == 'C'])
         
         num_categories = results_df['Component_Type'].nunique()
-        # MODIFIED: Top category by quantity instead of cost
-        top_category = results_df.groupby('Component_Type')['Net_Requirement'].sum().idxmax() if len(results_df) > 0 else 'N/A'
+        top_category = results_df.groupby('Component_Type')['Procurement_Cost'].sum().idxmax() if len(results_df) > 0 else 'N/A'
         num_suppliers = results_df['Supplier'].nunique()
         high_priority_cnt = len(results_df[results_df['Order_Priority_Score'] >= 50])
 
-        # REMOVED: top5_cost = results_df.nlargest(5, 'Procurement_Cost')[['Component_ID', 'Description', 'Procurement_Cost']]
-        # NEW: Top 5 by quantity
-        top5_qty = results_df.nlargest(5, 'Net_Requirement')[['Component_ID', 'Description', 'Net_Requirement']]
+        top5_cost = results_df.nlargest(5, 'Procurement_Cost')[['Component_ID', 'Description', 'Procurement_Cost']]
         top5_urgent = results_df[results_df['Order_Status'] == '🔴 Urgent Reorder'].nlargest(5, 'Order_Priority_Score')[['Component_ID', 'Description', 'Order_Priority_Score']]
 
         summary_data = []
@@ -4369,14 +4338,13 @@ def run_forecast_bom_analysis(gc_client=None):
         summary_data.append({'Metric': 'SKUs Skipped', 'Value': len(skipped_skus), 'Unit': 'SKUs'})
         summary_data.append({'Metric': '', 'Value': '', 'Unit': ''})
 
-        # REMOVED: Entire FINANCIAL section
-        # summary_data.append({'Metric': '═══ FINANCIAL ═══', 'Value': '', 'Unit': ''})
-        # summary_data.append({'Metric': 'Total Procurement Cost', 'Value': f'${total_proc_cost:,.2f}', 'Unit': ''})
-        # summary_data.append({'Metric': 'Total Inventory Value', 'Value': f'${total_value:,.2f}', 'Unit': ''})
-        # summary_data.append({'Metric': 'Urgent Orders Cost', 'Value': f'${urgent_cost:,.2f}', 'Unit': ''})
-        # summary_data.append({'Metric': 'Cost per Forecasted Unit', 'Value': f'${total_proc_cost/total_forecast if total_forecast else 0:.2f}', 'Unit': ''})
-        # summary_data.append({'Metric': 'Urgent Cost %', 'Value': f'{urgent_cost/total_proc_cost*100 if total_proc_cost else 0:.1f}%', 'Unit': ''})
-        # summary_data.append({'Metric': '', 'Value': '', 'Unit': ''})
+        summary_data.append({'Metric': '═══ FINANCIAL ═══', 'Value': '', 'Unit': ''})
+        summary_data.append({'Metric': 'Total Procurement Cost', 'Value': f'${total_proc_cost:,.2f}', 'Unit': ''})
+        summary_data.append({'Metric': 'Total Inventory Value', 'Value': f'${total_value:,.2f}', 'Unit': ''})
+        summary_data.append({'Metric': 'Urgent Orders Cost', 'Value': f'${urgent_cost:,.2f}', 'Unit': ''})
+        summary_data.append({'Metric': 'Cost per Forecasted Unit', 'Value': f'${total_proc_cost/total_forecast if total_forecast else 0:.2f}', 'Unit': ''})
+        summary_data.append({'Metric': 'Urgent Cost %', 'Value': f'{urgent_cost/total_proc_cost*100 if total_proc_cost else 0:.1f}%', 'Unit': ''})
+        summary_data.append({'Metric': '', 'Value': '', 'Unit': ''})
 
         summary_data.append({'Metric': '═══ INVENTORY HEALTH ═══', 'Value': '', 'Unit': ''})
         summary_data.append({'Metric': '🔴 Urgent Reorder', 'Value': urgent_cnt, 'Unit': 'components'})
@@ -4388,10 +4356,10 @@ def run_forecast_bom_analysis(gc_client=None):
         summary_data.append({'Metric': 'Average Coverage Ratio', 'Value': f'{avg_coverage_ratio:.2f}' if pd.notna(avg_coverage_ratio) else 'N/A', 'Unit': ''})
         summary_data.append({'Metric': '', 'Value': '', 'Unit': ''})
 
-        summary_data.append({'Metric': '═══ ABC CLASSIFICATION (Quantity-Based) ═══', 'Value': '', 'Unit': ''})
-        summary_data.append({'Metric': 'Class A (High Quantity)', 'Value': abc_a_cnt, 'Unit': 'components'})
-        summary_data.append({'Metric': 'Class B (Medium Quantity)', 'Value': abc_b_cnt, 'Unit': 'components'})
-        summary_data.append({'Metric': 'Class C (Low Quantity)', 'Value': abc_c_cnt, 'Unit': 'components'})
+        summary_data.append({'Metric': '═══ ABC CLASSIFICATION ═══', 'Value': '', 'Unit': ''})
+        summary_data.append({'Metric': 'Class A (High Value)', 'Value': abc_a_cnt, 'Unit': 'components'})
+        summary_data.append({'Metric': 'Class B (Medium Value)', 'Value': abc_b_cnt, 'Unit': 'components'})
+        summary_data.append({'Metric': 'Class C (Low Value)', 'Value': abc_c_cnt, 'Unit': 'components'})
         summary_data.append({'Metric': '', 'Value': '', 'Unit': ''})
 
         summary_data.append({'Metric': '═══ LEAD-TIME ═══', 'Value': '', 'Unit': ''})
@@ -4401,22 +4369,20 @@ def run_forecast_bom_analysis(gc_client=None):
         summary_data.append({'Metric': '', 'Value': '', 'Unit': ''})
 
         if len(category_summary) > 0:
-            summary_data.append({'Metric': '═══ TOP CATEGORIES (by Quantity) ═══', 'Value': '', 'Unit': ''})
-            summary_data.append({'Metric': 'Highest Quantity Category', 'Value': top_category, 'Unit': ''})
+            summary_data.append({'Metric': '═══ TOP CATEGORIES ═══', 'Value': '', 'Unit': ''})
+            summary_data.append({'Metric': 'Highest Cost Category', 'Value': top_category, 'Unit': ''})
             for _, row in category_summary.head(3).iterrows():
-                # MODIFIED: Show quantity instead of cost
                 summary_data.append({
                     'Metric': f"   {row['Component_Type']}", 
-                    'Value': f"{row['Total_Net_Requirement']:,.0f} units", 
-                    'Unit': f"({row['Qty_Percentage']:.1f}%)"
+                    'Value': f"${row['Total_Procurement_Cost']:,.2f}", 
+                    'Unit': f"({row['Cost_Percentage']:.1f}%)"
                 })
             summary_data.append({'Metric': '', 'Value': '', 'Unit': ''})
 
-        # MODIFIED: Top 5 by Quantity instead of Cost
-        summary_data.append({'Metric': '═══ TOP 5 BY QUANTITY ═══', 'Value': '', 'Unit': ''})
-        for _, row in top5_qty.iterrows():
+        summary_data.append({'Metric': '═══ TOP 5 COST DRIVERS ═══', 'Value': '', 'Unit': ''})
+        for _, row in top5_cost.iterrows():
             summary_data.append({'Metric': f"{row['Component_ID']} – {row['Description'][:30]}",
-                                'Value': f"{row['Net_Requirement']:,.0f} units", 'Unit': ''})
+                                'Value': f"${row['Procurement_Cost']:,.2f}", 'Unit': ''})
         summary_data.append({'Metric': '', 'Value': '', 'Unit': ''})
 
         if len(top5_urgent) > 0:
@@ -4432,8 +4398,8 @@ def run_forecast_bom_analysis(gc_client=None):
     # ==========================================================================
 
     def format_excel_output(writer, results_df: pd.DataFrame, forecast_df: pd.DataFrame,
-                        procurement_df: pd.DataFrame, inventory_df: pd.DataFrame,
-                        skipped_skus: List[Dict], missing_data: List[str]) -> None:
+                           procurement_df: pd.DataFrame, inventory_df: pd.DataFrame,
+                           skipped_skus: List[Dict], missing_data: List[str]) -> None:
 
         workbook = writer.book
 
@@ -4447,27 +4413,27 @@ def run_forecast_bom_analysis(gc_client=None):
         thin_border = Border(left=Side(style='thin'), right=Side(style='thin'),
                             top=Side(style='thin'), bottom=Side(style='thin'))
         
-        # MODIFIED: Removed currency formats for BOM (kept for reference if needed elsewhere)
-        # CURRENCY_FORMAT = '$#,##0.00'
-        # CURRENCY_WHOLE_FORMAT = '$#,##0'
+        CURRENCY_FORMAT = '$#,##0.00'
+        CURRENCY_WHOLE_FORMAT = '$#,##0'
         NUMBER_FORMAT = '#,##0'
         NUMBER_DECIMAL_FORMAT = '#,##0.00'
         PERCENT_FORMAT = '0.0%'
         
-        # MODIFIED: Removed cost-related columns from currency list
-        currency_columns = []  # Empty - no cost columns in BOM anymore
-        
+        currency_columns = ['Unit_Cost', 'Procurement_Cost', 'Total_Cost', 'Total_Value',
+                           'Total_Procurement_Cost', 'Urgent_Cost', 'Cost']
         quantity_columns = ['Gross_Requirement', 'Net_Requirement', 'Calculated_ROP', 'ROP',
-                        'Recommended_Order_Qty', 'Procurement_Needed', 'moq', 'eoq', 'MOQ', 'EOQ',
-                        'Safety_Stock', 'current_inventory', 'Current_Inventory',
-                        'Forecast_Demand', 'Total_Net_Requirement', 'Component_Count', 'Urgent_Count',
-                        'Daily_Demand']
+                           'Recommended_Order_Qty', 'Procurement_Needed', 'moq', 'eoq', 'MOQ', 'EOQ',
+                           'Safety_Stock', 'current_inventory', 'Current_Inventory',
+                           'Forecast_Demand', 'Total_Net_Requirement', 'Component_Count', 'Urgent_Count',
+                           'Daily_Demand']
 
         def smart_number_format(value, is_currency=False):
             try:
                 val = float(value) if value else 0
-                # MODIFIED: No currency formatting needed for BOM
-                return NUMBER_FORMAT if abs(val) >= 10 else NUMBER_DECIMAL_FORMAT
+                if is_currency:
+                    return CURRENCY_WHOLE_FORMAT if abs(val) >= 100 else CURRENCY_FORMAT
+                else:
+                    return NUMBER_FORMAT if abs(val) >= 10 else NUMBER_DECIMAL_FORMAT
             except:
                 return NUMBER_DECIMAL_FORMAT
 
@@ -4476,9 +4442,9 @@ def run_forecast_bom_analysis(gc_client=None):
                 return
             for col_idx, col_name in enumerate(df.columns, 1):
                 col_letter = get_column_letter(col_idx)
-                # MODIFIED: Removed currency check
+                is_currency = any(curr in col_name for curr in currency_columns)
                 is_quantity = any(qty in col_name for qty in quantity_columns)
-                is_percent = 'Percentage' in col_name or 'Pct' in col_name or col_name == 'Qty_Percentage'
+                is_percent = 'Percentage' in col_name or 'Pct' in col_name or col_name == 'Cost_Percentage'
                 is_wastage = col_name == 'Wastage%'
                 
                 for row in range(2, worksheet.max_row + 1):
@@ -4486,7 +4452,9 @@ def run_forecast_bom_analysis(gc_client=None):
                     cell_value = cell.value
                     try:
                         if cell_value is not None and cell_value != '':
-                            if is_wastage:
+                            if is_currency:
+                                cell.number_format = smart_number_format(cell_value, is_currency=True)
+                            elif is_wastage:
                                 # Wastage is stored as 10 meaning 10%, so use custom format
                                 cell.number_format = '0.0"%"'
                             elif is_percent:
@@ -4522,7 +4490,7 @@ def run_forecast_bom_analysis(gc_client=None):
 
             # Apply borders to all cells with data
             for row in worksheet.iter_rows(min_row=1, max_row=worksheet.max_row,
-                                        min_col=1, max_col=worksheet.max_column):
+                                          min_col=1, max_col=worksheet.max_column):
                 for cell in row:
                     if cell.value is not None:
                         cell.border = thin_border
@@ -4589,9 +4557,16 @@ def run_forecast_bom_analysis(gc_client=None):
                     value_cell.alignment = Alignment(horizontal='right', vertical='center')
                     unit_cell.alignment = Alignment(horizontal='left', vertical='center')
                     
-                    # MODIFIED: Removed currency formatting logic
                     if value_text:
-                        if value_text.endswith('%'):
+                        if value_text.startswith('$'):
+                            try:
+                                num_str = value_text.replace('$', '').replace(',', '')
+                                num_val = float(num_str)
+                                value_cell.value = num_val
+                                value_cell.number_format = CURRENCY_WHOLE_FORMAT if num_val >= 100 else CURRENCY_FORMAT
+                            except:
+                                pass
+                        elif value_text.endswith('%'):
                             try:
                                 num_str = value_text.replace('%', '').replace(',', '')
                                 num_val = float(num_str) / 100
@@ -4643,7 +4618,7 @@ def run_forecast_bom_analysis(gc_client=None):
                 # For any other sheets not explicitly handled above
                 worksheet.freeze_panes = 'A2'
 
-        print("✅ Applied professional Excel formatting (cost columns removed)")
+        print("✅ Applied professional Excel formatting")
 
     # ==========================================================================
     # MAIN EXECUTION

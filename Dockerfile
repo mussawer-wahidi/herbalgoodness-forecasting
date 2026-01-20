@@ -23,7 +23,14 @@ ENV PORT=8080
 EXPOSE 8080
 
 # Add a simple health check script
-RUN echo '#!/bin/bash\necho "Container starting..."\nstreamlit run Updated_Template.py --server.address=0.0.0.0 --server.port=8080 --server.headless=true' > /app/start.sh && chmod +x /app/start.sh
+RUN echo '#!/bin/bash
+echo "Container starting..."
+streamlit run Updated_Template.py \
+ --server.address=0.0.0.0 \
+ --server.port=8080 \
+ --server.headless=true \
+ --server.enableCORS=false \
+ --server.enableXsrfProtection=false' > /app/start.sh && chmod +x /app/start.sh
 
 # Run the app
 CMD ["/bin/bash", "/app/start.sh"]

@@ -1,36 +1,37 @@
-# Use a lightweight Python base image
+# Use lightweight Python image
 FROM python:3.10-slim
 
-# Set working directory inside the container
+# Set working directory
 WORKDIR /app
 
-# Copy only requirements first to leverage Docker cache
-COPY requirements.txt ./
+# Install system dependencies (recommended for pandas, numpy, etc.)
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
 
-# Install dependencies
+# Copy requirements first (Docker cache optimization)
+COPY requirements.txt .
+
+# Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the rest of your application code
+# Copy application code
 COPY . .
 
-# Set environment variables for Streamlit
+# Streamlit / Cloud Run environment variables
 ENV STREAMLIT_SERVER_HEADLESS=true
 ENV STREAMLIT_SERVER_PORT=8080
 ENV STREAMLIT_SERVER_ADDRESS=0.0.0.0
 ENV PORT=8080
 
-# Expose port
+# Expose Cloud Run port
 EXPOSE 8080
 
-# Add a simple health check script
-RUN echo '#!/bin/bash
-echo "Container starting..."
-streamlit run Updated_Template.py \
- --server.address=0.0.0.0 \
- --server.port=8080 \
- --server.headless=true \
- --server.enableCORS=false \
- --server.enableXsrfProtection=false' > /app/start.sh && chmod +x /app/start.sh
-
-# Run the app
-CMD ["/bin/bash", "/app/start.sh"]
+# Run Streamlit directly (recommended for Cloud Run)
+CMD ["streamlit", "run", "Updated_Template.py", \
+     "--server.address=0.0.0.0", \
+     "--server.port=8080", \
+     "--server.headless=true", \
+     "--server.enableCORS=false", \
+     "--server.enableXsrfProtection=false"]

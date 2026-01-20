@@ -29,9 +29,4 @@ ENV PORT=8080
 EXPOSE 8080
 
 # Run Streamlit directly (recommended for Cloud Run)
-CMD ["streamlit", "run", "Updated_Template.py", \
-     "--server.address=0.0.0.0", \
-     "--server.port=8080", \
-     "--server.headless=true", \
-     "--server.enableCORS=false", \
-     "--server.enableXsrfProtection=false"]
+CMD ["streamlit", "run", "Updated_Template.py", "--server.address=0.0.0.0", "--server.port=8080", "--server.headless=true", "--server.enableCORS=false", "--server.enableXsrfProtection=false"]
